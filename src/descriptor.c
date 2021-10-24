@@ -2645,7 +2645,7 @@ static int generate_descriptor_checksum(const char *descriptor, char *checksum)
     return WALLY_OK;
 }
 
-const struct address_script_t g_network_address_table[] = {
+static const struct address_script_t g_network_address_table[] = {
     {
         WALLY_NETWORK_BITCOIN_MAINNET,
         WALLY_ADDRESS_VERSION_P2PKH_MAINNET,
@@ -2673,6 +2673,13 @@ const struct address_script_t g_network_address_table[] = {
         WALLY_ADDRESS_VERSION_P2SH_LIQUID,
         WALLY_ADDRESS_VERSION_WIF_MAINNET,
         "ex"
+    },
+    {
+        WALLY_NETWORK_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_P2PKH_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_P2SH_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_WIF_TESTNET,
+        "tex"
     },
     {
         WALLY_NETWORK_LIQUID_REGTEST,
