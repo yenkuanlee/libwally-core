@@ -3489,13 +3489,13 @@ static void free_descriptor_address_item(
     if (item) {
         for (index = 0; index < item_len; ++index) {
             if (item[index].address) {
-                wally_clear((void *)item[index].address, item[index].address_len);
-                wally_free((void *)item[index].address);
+                wally_clear(item[index].address, item[index].address_len);
+                wally_free(item[index].address);
             }
-            wally_clear((void *)&item[index], sizeof(item[index]));
+            wally_clear(&item[index], sizeof(item[index]));
         }
-        wally_clear((void *)item, item_len * sizeof(struct wally_descriptor_address_item));
-        wally_free((void *)item);
+        wally_clear(item, item_len * sizeof(struct wally_descriptor_address_item));
+        wally_free(item);
     }
 }
 
@@ -3505,7 +3505,7 @@ int wally_free_descriptor_addresses(
     if (!addresses)
         return WALLY_EINVAL;
     free_descriptor_address_item(addresses->items, addresses->num_items);
-    wally_clear((void *)addresses, sizeof(*addresses));
+    wally_clear(addresses, sizeof(*addresses));
     return WALLY_OK;
 }
 
@@ -3719,7 +3719,7 @@ int wally_descriptor_to_addresses(
 
     script_items = (struct wally_descriptor_script_item *) wally_malloc(sizeof(struct wally_descriptor_script_item) * num_items);
     if (!script_items) {
-        wally_free((void *)address_items);
+        wally_free(address_items);
         return WALLY_ENOMEM;
     }
     wally_bzero(address_items, sizeof(struct wally_descriptor_address_item) * num_items);
@@ -3772,7 +3772,7 @@ int wally_descriptor_to_addresses(
             }
         }
         wally_bzero((char *)script_items, sizeof(struct wally_descriptor_script_item) * num_items);
-        wally_free((void *)script_items);
+        wally_free(script_items);
     }
     if (address_items)
         free_descriptor_address_item(address_items, num_items);
