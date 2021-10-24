@@ -255,6 +255,16 @@ static const struct address_script_t g_network_addresses[] = {
 
 #define NUM_NETWORK_ADDRESSES  (sizeof(g_network_addresses) / sizeof(g_network_addresses[0]))
 
+static const struct address_script_t *netaddr_from_network(uint32_t network)
+{
+    size_t i;
+    for (i = 0; i < NUM_NETWORK_ADDRESSES; ++i) {
+        if (network == g_network_addresses[i].network)
+            return g_network_addresses + i;
+    }
+    return NULL; /* Not found */
+}
+
 static const struct address_script_t *netaddr_from_addr_version(
     uint32_t addr_version, const struct address_script_t *target, bool *is_p2sh)
 {
@@ -2989,16 +2999,8 @@ static int analyze_miniscript_value(
     if (!node || (parent_node && !parent_node->info) || !message || !message[0])
         return WALLY_EINVAL;
 
-    if (network) {
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            if (*network == g_network_addresses[index].network) {
-                addr_item = &g_network_addresses[index];
-                break;
-            }
-        }
-        if (addr_item == NULL)
-            return WALLY_EINVAL;
-    }
+    if (network && !(addr_item = netaddr_from_network(*network)))
+        return WALLY_EINVAL; /* Unknown network */
 
     str_len = strlen(message);
 
@@ -3563,25 +3565,16 @@ int wally_descriptor_to_scriptpubkey(
     size_t *written)
 {
     int ret;
-    size_t index;
-    const struct address_script_t *addr_item = NULL;
+    const struct address_script_t *addr_item;
     struct wally_descriptor_script_item script_item;
+
+    if (written)
+        *written = 0;
 
     if (!script || !written || !script_len)
         return WALLY_EINVAL;
 
-    if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_addresses[2];  /* bitcoin regtest */
-    else
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            if (network == (uint32_t)g_network_addresses[index].network) {
-                addr_item = &g_network_addresses[index];
-                break;
-            }
-        }
-
-    if (written)
-        *written = 0;
+    addr_item = netaddr_from_network(network);
 
     wally_bzero(&script_item, sizeof(script_item));
     script_item.child_num = derive_child_num;
@@ -3595,7 +3588,7 @@ int wally_descriptor_to_scriptpubkey(
         array_len,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        (!addr_item) ? NULL : &network,
+        addr_item ? &network : NULL,
         target_depth,
         target_index,
         &script_item,
@@ -3618,24 +3611,10 @@ int wally_descriptor_to_address(
     char **output)
 {
     int ret;
-    size_t index;
-    const struct address_script_t *addr_item = NULL;
+    const struct address_script_t *addr_item;
     struct wally_descriptor_script_item script_item;
 
-    if (!output)
-        return WALLY_EINVAL;
-
-    if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_addresses[2];  /* bitcoin regtest */
-    else
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            if (network == (uint32_t)g_network_addresses[index].network) {
-                addr_item = &g_network_addresses[index];
-                break;
-            }
-        }
-
-    if (!addr_item)
+    if (!output || !(addr_item = netaddr_from_network(network)))
         return WALLY_EINVAL;
 
     wally_bzero(&script_item, sizeof(script_item));
@@ -3690,17 +3669,7 @@ int wally_descriptor_to_addresses(
     if (!addresses || !descriptor || (start_child_num > end_child_num))
         return WALLY_EINVAL;
 
-    if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_addresses[2];
-    else
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            if (network == (uint32_t)g_network_addresses[index].network) {
-                addr_item = &g_network_addresses[index];
-                break;
-            }
-        }
-
-    if (!addr_item)
+    if (!(addr_item = netaddr_from_network(network)))
         return WALLY_EINVAL;
 
     num_items = end_child_num - start_child_num + 1;
