@@ -201,11 +201,56 @@ struct multisig_sort_data_t {
 };
 
 struct address_script_t {
-    unsigned char network;
-    unsigned char version_p2pkh;
-    unsigned char version_p2sh;
-    unsigned char version_wif;
-    const char *segwit_prefix;
+    const unsigned char network;
+    const unsigned char version_p2pkh;
+    const unsigned char version_p2sh;
+    const unsigned char version_wif;
+    const char addr_family[8];
+};
+
+static const struct address_script_t g_network_address_table[] = {
+    {
+        WALLY_NETWORK_BITCOIN_MAINNET,
+        WALLY_ADDRESS_VERSION_P2PKH_MAINNET,
+        WALLY_ADDRESS_VERSION_P2SH_MAINNET,
+        WALLY_ADDRESS_VERSION_WIF_MAINNET,
+        { 'b', 'c', '\0', '\0', '\0', '\0', '\0', '\0' }
+    },
+    {
+        WALLY_NETWORK_BITCOIN_TESTNET,
+        WALLY_ADDRESS_VERSION_P2PKH_TESTNET,
+        WALLY_ADDRESS_VERSION_P2SH_TESTNET,
+        WALLY_ADDRESS_VERSION_WIF_TESTNET,
+        { 't', 'b', '\0', '\0', '\0', '\0', '\0', '\0' }
+    },
+    {   /* bitcoin regtest */
+        WALLY_NETWORK_BITCOIN_REGTEST,
+        WALLY_ADDRESS_VERSION_P2PKH_TESTNET,
+        WALLY_ADDRESS_VERSION_P2SH_TESTNET,
+        WALLY_ADDRESS_VERSION_WIF_TESTNET,
+        { 'b', 'c', 'r', 't', '\0', '\0', '\0', '\0' }
+    },
+    {
+        WALLY_NETWORK_LIQUID,
+        WALLY_ADDRESS_VERSION_P2PKH_LIQUID,
+        WALLY_ADDRESS_VERSION_P2SH_LIQUID,
+        WALLY_ADDRESS_VERSION_WIF_MAINNET,
+        { 'e', 'x', '\0', '\0', '\0', '\0', '\0', '\0' }
+    },
+    {
+        WALLY_NETWORK_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_P2PKH_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_P2SH_LIQUID_TESTNET,
+        WALLY_ADDRESS_VERSION_WIF_TESTNET,
+        { 't', 'e', 'x', '\0', '\0', '\0', '\0', '\0' }
+    },
+    {
+        WALLY_NETWORK_LIQUID_REGTEST,
+        WALLY_ADDRESS_VERSION_P2PKH_LIQUID_REGTEST,
+        WALLY_ADDRESS_VERSION_P2SH_LIQUID_REGTEST,
+        WALLY_ADDRESS_VERSION_WIF_TESTNET,
+        { 'e', 'r', 't', '\0', '\0', '\0', '\0', '\0' }
+    },
 };
 
 /* Function prototype */
@@ -2645,51 +2690,6 @@ static int generate_descriptor_checksum(const char *descriptor, char *checksum)
     return WALLY_OK;
 }
 
-static const struct address_script_t g_network_address_table[] = {
-    {
-        WALLY_NETWORK_BITCOIN_MAINNET,
-        WALLY_ADDRESS_VERSION_P2PKH_MAINNET,
-        WALLY_ADDRESS_VERSION_P2SH_MAINNET,
-        WALLY_ADDRESS_VERSION_WIF_MAINNET,
-        "bc"
-    },
-    {
-        WALLY_NETWORK_BITCOIN_TESTNET,
-        WALLY_ADDRESS_VERSION_P2PKH_TESTNET,
-        WALLY_ADDRESS_VERSION_P2SH_TESTNET,
-        WALLY_ADDRESS_VERSION_WIF_TESTNET,
-        "tb"
-    },
-    {   /* bitcoin regtest */
-        WALLY_NETWORK_BITCOIN_REGTEST,
-        WALLY_ADDRESS_VERSION_P2PKH_TESTNET,
-        WALLY_ADDRESS_VERSION_P2SH_TESTNET,
-        WALLY_ADDRESS_VERSION_WIF_TESTNET,
-        "bcrt"
-    },
-    {
-        WALLY_NETWORK_LIQUID,
-        WALLY_ADDRESS_VERSION_P2PKH_LIQUID,
-        WALLY_ADDRESS_VERSION_P2SH_LIQUID,
-        WALLY_ADDRESS_VERSION_WIF_MAINNET,
-        "ex"
-    },
-    {
-        WALLY_NETWORK_LIQUID_TESTNET,
-        WALLY_ADDRESS_VERSION_P2PKH_LIQUID_TESTNET,
-        WALLY_ADDRESS_VERSION_P2SH_LIQUID_TESTNET,
-        WALLY_ADDRESS_VERSION_WIF_TESTNET,
-        "tex"
-    },
-    {
-        WALLY_NETWORK_LIQUID_REGTEST,
-        WALLY_ADDRESS_VERSION_P2PKH_LIQUID_REGTEST,
-        WALLY_ADDRESS_VERSION_P2SH_LIQUID_REGTEST,
-        WALLY_ADDRESS_VERSION_WIF_TESTNET,
-        "ert"
-    },
-};
-
 static int analyze_miniscript_addr(
     const char *message,
     struct miniscript_node_t *node,
@@ -2788,7 +2788,8 @@ static int analyze_miniscript_addr(
     if (target_addr_item) {
         written = strlen(addr_family) + 1;
         for (index = 0; index < addr_tbl_max; ++index) {
-            if (memcmp(addr_family, g_network_address_table[index].segwit_prefix, written) == 0) {
+            /* FIXME: Potential out of bounds read */
+            if (memcmp(addr_family, g_network_address_table[index].addr_family, written) == 0) {
                 if (target_addr_item->network != g_network_address_table[index].network)
                     return WALLY_EINVAL;
 
@@ -3477,7 +3478,8 @@ static int descriptor_scriptpubkey_to_address(
         ret = wally_base58_from_bytes(hash, hash_len, BASE58_FLAG_CHECKSUM, output);
     } else if ((script_type == WALLY_SCRIPT_TYPE_P2WPKH) ||
                (script_type == WALLY_SCRIPT_TYPE_P2WSH)) {
-        ret = wally_addr_segwit_from_bytes(script, script_len, address_item->segwit_prefix, 0, output);
+        const uint32_t flags = 0;
+        ret = wally_addr_segwit_from_bytes(script, script_len, address_item->addr_family, flags, output);
     }
     return ret;
 }
