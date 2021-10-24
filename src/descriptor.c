@@ -2868,7 +2868,7 @@ static int analyze_miniscript_key(
         }
     }
     else if (((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0) &&
-        (str_len == XONLY_PUBLIC_KEY_LEN * 2)) {
+             (str_len == XONLY_PUBLIC_KEY_LEN * 2)) {
         ret = wally_hex_to_bytes(node->data, pubkey, sizeof(pubkey), &buf_len);
         if (ret == WALLY_OK) {
             node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
