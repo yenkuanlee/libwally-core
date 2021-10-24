@@ -223,7 +223,7 @@ static const struct address_script_t g_network_addresses[] = {
         WALLY_ADDRESS_VERSION_WIF_TESTNET,
         { 't', 'b', '\0', '\0', '\0', '\0', '\0', '\0' }
     },
-    {   /* bitcoin regtest */
+    {   /* Bitcoin regtest. This must remain immediately after WALLY_NETWORK_BITCOIN_TESTNET */
         WALLY_NETWORK_BITCOIN_REGTEST,
         WALLY_ADDRESS_VERSION_P2PKH_TESTNET,
         WALLY_ADDRESS_VERSION_P2SH_TESTNET,
@@ -254,6 +254,31 @@ static const struct address_script_t g_network_addresses[] = {
 };
 
 #define NUM_NETWORK_ADDRESSES  (sizeof(g_network_addresses) / sizeof(g_network_addresses[0]))
+
+static const struct address_script_t *netaddr_from_addr_version(
+    uint32_t addr_version, const struct address_script_t *target, bool *is_p2sh)
+{
+    size_t i;
+
+    for (i = 0; i < NUM_NETWORK_ADDRESSES; ++i) {
+        const struct address_script_t *netaddr = g_network_addresses + i;
+        if (addr_version == netaddr->version_p2pkh || addr_version == netaddr->version_p2sh) {
+            /* Found a matching network based on base58 address version*/
+            if (target && netaddr->network != target->network) {
+                /* Mismatch on caller provided network */
+                if (netaddr->network == WALLY_NETWORK_BITCOIN_TESTNET && target->network == WALLY_NETWORK_BITCOIN_REGTEST) {
+                    /* BTC testnet and regtest have the same versions; use the regtest entry */
+                    ++netaddr;
+                } else {
+                    return NULL; /* Mismatch on provided network: Not found */
+                }
+            }
+            *is_p2sh = addr_version == netaddr->version_p2sh;
+            return netaddr; /* Found */
+        }
+    }
+    return NULL; /* Not found */
+}
 
 /* Function prototype */
 static int generate_by_wrapper_c(
@@ -2705,7 +2730,6 @@ static int analyze_miniscript_addr(
     char *target = NULL;
     char addr_family[90];
     char buf[SHA256_LEN + 2];
-    uint32_t version;
     unsigned char bytes_base58_decode[1 + HASH160_LEN + BASE58_CHECKSUM_LEN];
     size_t written;
     size_t index;
@@ -2733,27 +2757,10 @@ static int analyze_miniscript_addr(
         if (written != HASH160_LEN + 1)
             return WALLY_EINVAL;
 
-        version = bytes_base58_decode[0];
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            if (version == g_network_addresses[index].version_p2pkh) {
-                addr_item = &g_network_addresses[index];
-                break;
-            } else if (version == g_network_addresses[index].version_p2sh) {
-                addr_item = &g_network_addresses[index];
-                is_p2sh = true;
-                break;
-            }
-        }
+        addr_item = netaddr_from_addr_version(bytes_base58_decode[0], target_addr_item, &is_p2sh);
+        if (!addr_item)
+            return WALLY_EINVAL; /* Network not found */
 
-        if (addr_item == NULL)
-            return WALLY_EINVAL;
-        if (target_addr_item) {
-            if (target_addr_item->network == WALLY_NETWORK_BITCOIN_REGTEST &&
-                addr_item->network == WALLY_NETWORK_BITCOIN_TESTNET) {
-                /* do nothing (bitcoin regtest) */
-            } else if (target_addr_item->network != addr_item->network)
-                return WALLY_EINVAL;
-        }
         if (node)
             node->kind = DESCRIPTOR_KIND_BASE58;
 
