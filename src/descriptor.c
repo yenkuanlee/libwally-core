@@ -208,7 +208,7 @@ struct address_script_t {
     const char addr_family[8];
 };
 
-static const struct address_script_t g_network_address_table[] = {
+static const struct address_script_t g_network_addresses[] = {
     {
         WALLY_NETWORK_BITCOIN_MAINNET,
         WALLY_ADDRESS_VERSION_P2PKH_MAINNET,
@@ -252,6 +252,8 @@ static const struct address_script_t g_network_address_table[] = {
         { 'e', 'r', 't', '\0', '\0', '\0', '\0', '\0' }
     },
 };
+
+#define NUM_NETWORK_ADDRESSES  (sizeof(g_network_addresses) / sizeof(g_network_addresses[0]))
 
 /* Function prototype */
 static int generate_by_wrapper_c(
@@ -2707,7 +2709,6 @@ static int analyze_miniscript_addr(
     unsigned char bytes_base58_decode[1 + HASH160_LEN + BASE58_CHECKSUM_LEN];
     size_t written;
     size_t index;
-    size_t addr_tbl_max = sizeof(g_network_address_table) / sizeof(struct address_script_t);
     int size;
     bool is_p2sh = false;
     const struct address_script_t *addr_item = NULL;
@@ -2733,12 +2734,12 @@ static int analyze_miniscript_addr(
             return WALLY_EINVAL;
 
         version = bytes_base58_decode[0];
-        for (index = 0; index < addr_tbl_max; ++index) {
-            if (version == g_network_address_table[index].version_p2pkh) {
-                addr_item = &g_network_address_table[index];
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
+            if (version == g_network_addresses[index].version_p2pkh) {
+                addr_item = &g_network_addresses[index];
                 break;
-            } else if (version == g_network_address_table[index].version_p2sh) {
-                addr_item = &g_network_address_table[index];
+            } else if (version == g_network_addresses[index].version_p2sh) {
+                addr_item = &g_network_addresses[index];
                 is_p2sh = true;
                 break;
             }
@@ -2787,10 +2788,10 @@ static int analyze_miniscript_addr(
     }
     if (target_addr_item) {
         written = strlen(addr_family) + 1;
-        for (index = 0; index < addr_tbl_max; ++index) {
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
             /* FIXME: Potential out of bounds read */
-            if (memcmp(addr_family, g_network_address_table[index].addr_family, written) == 0) {
-                if (target_addr_item->network != g_network_address_table[index].network)
+            if (memcmp(addr_family, g_network_addresses[index].addr_family, written) == 0) {
+                if (target_addr_item->network != g_network_addresses[index].network)
                     return WALLY_EINVAL;
 
                 break;
@@ -2986,16 +2987,15 @@ static int analyze_miniscript_value(
     size_t buf_len;
     char *buf = NULL;
     char *err_ptr = NULL;
-    size_t addr_tbl_max = sizeof(g_network_address_table) / sizeof(struct address_script_t);
     const struct address_script_t *addr_item = NULL;
 
     if (!node || (parent_node && !parent_node->info) || !message || !message[0])
         return WALLY_EINVAL;
 
     if (network) {
-        for (index = 0; index < addr_tbl_max; ++index) {
-            if (*network == g_network_address_table[index].network) {
-                addr_item = &g_network_address_table[index];
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
+            if (*network == g_network_addresses[index].network) {
+                addr_item = &g_network_addresses[index];
                 break;
             }
         }
@@ -3567,7 +3567,6 @@ int wally_descriptor_to_scriptpubkey(
 {
     int ret;
     size_t index;
-    size_t addr_tbl_max = sizeof(g_network_address_table) / sizeof(struct address_script_t);
     const struct address_script_t *addr_item = NULL;
     struct wally_descriptor_script_item script_item;
 
@@ -3575,11 +3574,11 @@ int wally_descriptor_to_scriptpubkey(
         return WALLY_EINVAL;
 
     if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_address_table[2];  /* bitcoin regtest */
+        addr_item = &g_network_addresses[2];  /* bitcoin regtest */
     else
-        for (index = 0; index < addr_tbl_max; ++index) {
-            if (network == (uint32_t)g_network_address_table[index].network) {
-                addr_item = &g_network_address_table[index];
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
+            if (network == (uint32_t)g_network_addresses[index].network) {
+                addr_item = &g_network_addresses[index];
                 break;
             }
         }
@@ -3623,7 +3622,6 @@ int wally_descriptor_to_address(
 {
     int ret;
     size_t index;
-    size_t addr_tbl_max = sizeof(g_network_address_table) / sizeof(struct address_script_t);
     const struct address_script_t *addr_item = NULL;
     struct wally_descriptor_script_item script_item;
 
@@ -3631,11 +3629,11 @@ int wally_descriptor_to_address(
         return WALLY_EINVAL;
 
     if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_address_table[2];  /* bitcoin regtest */
+        addr_item = &g_network_addresses[2];  /* bitcoin regtest */
     else
-        for (index = 0; index < addr_tbl_max; ++index) {
-            if (network == (uint32_t)g_network_address_table[index].network) {
-                addr_item = &g_network_address_table[index];
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
+            if (network == (uint32_t)g_network_addresses[index].network) {
+                addr_item = &g_network_addresses[index];
                 break;
             }
         }
@@ -3688,7 +3686,6 @@ int wally_descriptor_to_addresses(
     uint32_t child_num;
     uint32_t num_items;
     size_t index;
-    size_t addr_tbl_max = sizeof(g_network_address_table) / sizeof(struct address_script_t);
     const struct address_script_t *addr_item = NULL;
     struct wally_descriptor_address_item *address_items = NULL;
     struct wally_descriptor_script_item *script_items = NULL;
@@ -3697,11 +3694,11 @@ int wally_descriptor_to_addresses(
         return WALLY_EINVAL;
 
     if (network == WALLY_NETWORK_BITCOIN_REGTEST)
-        addr_item = &g_network_address_table[2];
+        addr_item = &g_network_addresses[2];
     else
-        for (index = 0; index < addr_tbl_max; ++index) {
-            if (network == (uint32_t)g_network_address_table[index].network) {
-                addr_item = &g_network_address_table[index];
+        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
+            if (network == (uint32_t)g_network_addresses[index].network) {
+                addr_item = &g_network_addresses[index];
                 break;
             }
         }
