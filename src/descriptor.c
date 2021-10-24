@@ -3488,11 +3488,7 @@ static void free_descriptor_address_item(
     size_t index;
     if (item) {
         for (index = 0; index < item_len; ++index) {
-            if (item[index].address) {
-                wally_clear(item[index].address, item[index].address_len);
-                wally_free(item[index].address);
-            }
-            wally_clear(&item[index], sizeof(item[index]));
+            wally_free_string(item[index].address);
         }
         wally_clear(item, item_len * sizeof(struct wally_descriptor_address_item));
         wally_free(item);
@@ -3754,7 +3750,6 @@ int wally_descriptor_to_addresses(
                                                      &address_items[index].address);
             if (ret != WALLY_OK)
                 break;
-            address_items[index].address_len = strlen(address_items[index].address);
         }
     }
 

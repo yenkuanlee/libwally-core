@@ -54,9 +54,8 @@ class ext_key(Structure):
                 ('pub_key_tweak_sum', c_ubyte * 32)]
 
 class wally_descriptor_address_item(Structure):
-    _fields_ = [('child_num', c_uint),
-                ('address', c_char_p),
-                ('address_len', c_ulong)]
+    _fields_ = [('address', c_char_p),
+                ('child_num', c_uint)]
 
 class wally_descriptor_addresses(Structure):
     _fields_ = [('items',  POINTER(wally_descriptor_address_item)),

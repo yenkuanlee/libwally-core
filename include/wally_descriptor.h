@@ -20,9 +20,8 @@ struct wally_descriptor_addresses;
 #else
 /** A descriptor address */
 struct wally_descriptor_address_item {
-    uint32_t child_num;
     char *address;
-    size_t address_len;
+    uint32_t child_num;
 };
 
 /** A descriptor addresses */
