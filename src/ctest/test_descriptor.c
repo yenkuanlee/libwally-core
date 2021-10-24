@@ -1311,5 +1311,6 @@ int main(void)
         }
     }
 
+    wally_cleanup(0);
     return tests_ok ? 0 : 1;
 }
