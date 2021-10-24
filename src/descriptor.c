@@ -209,13 +209,6 @@ struct address_script_t {
 };
 
 /* Function prototype */
-static int convert_bip32_path_to_array(
-    const char *path,
-    uint32_t *bip32_array,
-    uint32_t array_num,
-    bool is_private,
-    uint32_t *count,
-    int8_t *astarisk_index);
 static int generate_by_wrapper_c(
     unsigned char *script,
     size_t script_len,
