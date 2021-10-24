@@ -2730,12 +2730,10 @@ static int analyze_miniscript_addr(
     char *target = NULL;
     char addr_family[90];
     char buf[SHA256_LEN + 2];
-    unsigned char bytes_base58_decode[1 + HASH160_LEN + BASE58_CHECKSUM_LEN];
+    unsigned char decoded[1 + HASH160_LEN + BASE58_CHECKSUM_LEN];
     size_t written;
     size_t index;
     int size;
-    bool is_p2sh = false;
-    const struct address_script_t *addr_item = NULL;
 
     if (parent_node && !node)
         return WALLY_EINVAL;
@@ -2751,35 +2749,27 @@ static int analyze_miniscript_addr(
         node->data_size = (uint32_t)strlen(message);
     }
 
-    ret = wally_base58_to_bytes(message, BASE58_FLAG_CHECKSUM, bytes_base58_decode,
-                                sizeof(bytes_base58_decode), &written);
+    ret = wally_base58_to_bytes(message, BASE58_FLAG_CHECKSUM, decoded,
+                                sizeof(decoded), &written);
     if (ret == WALLY_OK) {
-        if (written != HASH160_LEN + 1)
-            return WALLY_EINVAL;
+        /* base58 address: Check for P2PKH/P2SH */
+        const struct address_script_t *addr_item;
+        bool is_p2sh;
 
-        addr_item = netaddr_from_addr_version(bytes_base58_decode[0], target_addr_item, &is_p2sh);
+        if (written != HASH160_LEN + 1)
+            return WALLY_EINVAL; /* Unexpected address length */
+
+        addr_item = netaddr_from_addr_version(decoded[0], target_addr_item, &is_p2sh);
         if (!addr_item)
             return WALLY_EINVAL; /* Network not found */
 
         if (node)
             node->kind = DESCRIPTOR_KIND_BASE58;
 
-        if (!script) {
-            /* do nothing */
-        } else if (is_p2sh) {
-            ret = wally_scriptpubkey_p2sh_from_bytes(bytes_base58_decode + 1,
-                                                     HASH160_LEN,
-                                                     0,
-                                                     script,
-                                                     script_len,
-                                                     write_len);
-        } else {
-            ret = wally_scriptpubkey_p2pkh_from_bytes(bytes_base58_decode + 1,
-                                                      HASH160_LEN,
-                                                      0,
-                                                      script,
-                                                      script_len,
-                                                      write_len);
+        if (script) {
+            /* Create the scriptpubkey */
+            ret = (is_p2sh ? wally_scriptpubkey_p2sh_from_bytes : wally_scriptpubkey_p2pkh_from_bytes)(
+                decoded + 1, HASH160_LEN, 0, script, script_len, write_len);
         }
         return ret;
     }
