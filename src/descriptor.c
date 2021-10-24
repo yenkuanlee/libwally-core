@@ -2,6 +2,7 @@
 
 #include "ccan/ccan/crypto/ripemd160/ripemd160.h"
 #include "ccan/ccan/crypto/sha256/sha256.h"
+#include "script_int.h"
 
 #include <include/wally_address.h>
 #include <include/wally_bip32.h>
@@ -13,9 +14,6 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
-
-/* Reference */
-size_t scriptint_to_bytes(int64_t signed_v, unsigned char *bytes_out);
 
 /* Definition */
 /* Properties and expressions definition */
