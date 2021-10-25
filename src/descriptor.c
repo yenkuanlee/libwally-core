@@ -347,8 +347,7 @@ static int realloc_substr_buffer(size_t need_len, char **buffer, size_t *buffer_
         if (*buffer != NULL)
             wally_free(*buffer);
 
-        *buffer = (char *) wally_malloc(need_size);
-        if (*buffer == NULL)
+        if (!(*buffer = wally_malloc(need_size)))
             return WALLY_ENOMEM;
 
         *buffer_len = need_size;
@@ -1351,9 +1350,7 @@ static int generate_by_descriptor_multisig(
         temp_node = temp_node->next;
     }
 
-    sorted_node_array = (struct multisig_sort_data_t *)wally_malloc(
-        count * sizeof(struct multisig_sort_data_t));
-    if (!sorted_node_array)
+    if (!(sorted_node_array = wally_malloc(count * sizeof(*sorted_node_array))))
         return WALLY_ENOMEM;
 
     temp_node = child->next;
@@ -2366,8 +2363,7 @@ static int convert_bip32_path_to_array(
     if (!buf)
         return WALLY_ENOMEM;
 
-    array = (uint32_t *) wally_malloc(sizeof(uint32_t) * DESCRIPTOR_BIP32_PATH_NUM_MAX);
-    if (!array) {
+    if (!(array = wally_malloc(DESCRIPTOR_BIP32_PATH_NUM_MAX * sizeof(*array)))) {
         wally_free_string(buf);
         return WALLY_ENOMEM;
     }
@@ -2850,8 +2846,7 @@ static int analyze_miniscript_key(
             return WALLY_EINVAL;
 
         size = (int)(buf - node->data + 1);
-        node->key_origin_info = (char *) wally_malloc(size + 1);
-        if (!node->key_origin_info)
+        if (!(node->key_origin_info = wally_malloc(size + 1)))
             return WALLY_ENOMEM;
 
         memcpy(node->key_origin_info, node->data, size);
@@ -3096,8 +3091,7 @@ static int analyze_miniscript(
 
     str_len = strlen(miniscript);
 
-    node = (struct miniscript_node_t *) wally_malloc(sizeof(struct miniscript_node_t));
-    if (!node)
+    if (!(node = wally_malloc(sizeof(*node))))
         return WALLY_ENOMEM;
 
     wally_bzero(node, sizeof(struct miniscript_node_t));
@@ -3309,8 +3303,7 @@ static int convert_script_from_node(
         target_node = target_node->next;
     }
 
-    buf = wally_malloc(DESCRIPTOR_LIMIT_LENGTH);
-    if (!buf)
+    if (!(buf = wally_malloc(DESCRIPTOR_LIMIT_LENGTH)))
         return WALLY_ENOMEM;
 
     ret = generate_script_from_miniscript(target_node,
@@ -3390,8 +3383,7 @@ static int parse_miniscript(
             temp_script_len = script_item[index].script_len;
             if (!temp_script) {
                 if (!work_script) {
-                    work_script = (unsigned char *)wally_malloc(DESCRIPTOR_LIMIT_LENGTH);
-                    if (!work_script) {
+                    if (!(work_script = wally_malloc(DESCRIPTOR_LIMIT_LENGTH))) {
                         ret = WALLY_ENOMEM;
                         break;
                     }
@@ -3407,8 +3399,7 @@ static int parse_miniscript(
             if (ret != WALLY_OK)
                 break;
             if (!script_item[index].script) {
-                script_item[index].script = (unsigned char *)wally_malloc(write_len);
-                if (!script_item[index].script) {
+                if (!(script_item[index].script = wally_malloc(write_len))) {
                     ret = WALLY_ENOMEM;
                     break;
                 }
@@ -3672,17 +3663,13 @@ int wally_descriptor_to_addresses(
 
     num_items = end_child_num - start_child_num + 1;
 
-    address_items = (struct wally_descriptor_address_item *) wally_malloc(sizeof(struct wally_descriptor_address_item) * num_items);
-    if (!address_items)
+    if (!(address_items = wally_calloc(num_items * sizeof(*address_items))))
         return WALLY_ENOMEM;
 
-    script_items = (struct wally_descriptor_script_item *) wally_malloc(sizeof(struct wally_descriptor_script_item) * num_items);
-    if (!script_items) {
+    if (!(script_items = wally_calloc(num_items * sizeof(*script_items)))) {
         wally_free(address_items);
         return WALLY_ENOMEM;
     }
-    wally_bzero(address_items, sizeof(struct wally_descriptor_address_item) * num_items);
-    wally_bzero(script_items, sizeof(struct wally_descriptor_script_item) * num_items);
 
     index = 0;
     for (child_num = start_child_num; child_num <= end_child_num; ++child_num) {
