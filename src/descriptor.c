@@ -290,6 +290,14 @@ static const struct address_script_t *netaddr_from_addr_version(
     return NULL; /* Not found */
 }
 
+static const struct address_script_t *netaddr_from_addr_family(const char *addr_family, uint32_t network)
+{
+    const struct address_script_t *netaddr = netaddr_from_network(network);
+    if (!netaddr || strncmp(addr_family, netaddr->addr_family, sizeof(netaddr->addr_family)))
+        return NULL; /* Not found or mismatched address version */
+    return netaddr; /* Found */
+}
+
 /* Function prototype */
 static int generate_by_wrapper_c(
     unsigned char *script,
@@ -2737,13 +2745,11 @@ static int analyze_miniscript_addr(
     size_t *write_len)
 {
     int ret;
-    char *target = NULL;
     char addr_family[90];
-    char buf[SHA256_LEN + 2];
+    unsigned char buf[SHA256_LEN + 2];
     unsigned char decoded[1 + HASH160_LEN + BASE58_CHECKSUM_LEN];
     size_t written;
-    size_t index;
-    int size;
+    size_t i;
 
     if (parent_node && !node)
         return WALLY_EINVAL;
@@ -2785,29 +2791,21 @@ static int analyze_miniscript_addr(
     }
 
     /* segwit */
-    wally_bzero(addr_family, sizeof(addr_family));
-    target = strchr(message, '1');
-    if (target && (sizeof(addr_family))) {
-        size = (int)(target - message);
-        if (size < (int)sizeof(addr_family)) {
-            memcpy(addr_family, message, size);
+    for (i = 0; i < sizeof(addr_family); ++i) {
+        if (!message[i] || message[i] == '1') {
+            addr_family[i] = '\0';
+            break; /* Found (or end of string, wally_addr_segwit_to_bytes will fail below) */
         }
-    }
-    if (target_addr_item) {
-        written = strlen(addr_family) + 1;
-        for (index = 0; index < NUM_NETWORK_ADDRESSES; ++index) {
-            /* FIXME: Potential out of bounds read */
-            if (memcmp(addr_family, g_network_addresses[index].addr_family, written) == 0) {
-                if (target_addr_item->network != g_network_addresses[index].network)
-                    return WALLY_EINVAL;
-
-                break;
-            }
-        }
+        addr_family[i] = message[i];
     }
 
-    ret = wally_addr_segwit_to_bytes(message, addr_family, 0, (unsigned char *)buf,
-                                     sizeof(buf), &written);
+    if (i == sizeof(addr_family))
+        return WALLY_EINVAL; /* Address family too long for bech32 */
+
+    if (target_addr_item && !netaddr_from_addr_family(addr_family, target_addr_item->network))
+        return WALLY_EINVAL; /* Unknown network or address family mismatch */
+
+    ret = wally_addr_segwit_to_bytes(message, addr_family, 0, buf, sizeof(buf), &written);
     if ((ret == WALLY_OK) && (written != (HASH160_LEN + 2)) && (written != (SHA256_LEN + 2)))
         ret = WALLY_EINVAL;
 
