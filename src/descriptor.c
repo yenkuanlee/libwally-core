@@ -343,8 +343,8 @@ static bool is_ascii_string(const char *message, size_t max_len)
 static int realloc_substr_buffer(size_t need_len, char **buffer, size_t *buffer_len)
 {
     size_t need_size = ((need_len / 64) + 2) * 64;
-    if ((*buffer == NULL) || (need_size > *buffer_len)) {
-        if (*buffer != NULL)
+    if (!*buffer || need_size > *buffer_len) {
+        if (*buffer)
             wally_free(*buffer);
 
         if (!(*buffer = wally_malloc(need_size)))
@@ -359,7 +359,7 @@ static int32_t get_child_list_count(struct miniscript_node_t *node)
 {
     int32_t ret = 0;
     struct miniscript_node_t *chain = node->child;
-    while (chain != NULL) {
+    while (chain) {
         ++ret;
         chain = chain->next;
     }
@@ -499,7 +499,7 @@ static int verify_descriptor_wpkh(struct miniscript_node_t *node, struct miniscr
         ((node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY))
         return WALLY_EINVAL;
 
-    while (parent_item != NULL) {
+    while (parent_item) {
         if (parent_item->kind == DESCRIPTOR_KIND_DESCRIPTOR_WSH)
             return WALLY_EINVAL;
         parent_item = parent_item->parent;
@@ -1345,7 +1345,7 @@ static int generate_by_descriptor_multisig(
         return ret;
 
     temp_node = child->next;
-    while (temp_node != NULL) {
+    while (temp_node) {
         ++count;
         temp_node = temp_node->next;
     }
@@ -1354,7 +1354,7 @@ static int generate_by_descriptor_multisig(
         return WALLY_ENOMEM;
 
     temp_node = child->next;
-    while (temp_node != NULL) {
+    while (temp_node) {
         sorted_node_array[index].node = temp_node;
         ++index;
         temp_node = temp_node->next;
@@ -1961,7 +1961,7 @@ static int generate_by_miniscript_thresh(
         return WALLY_EINVAL;
 
     child = child->next;
-    while (child != NULL) {
+    while (child) {
         output_len = 0;
         ret = generate_script_from_miniscript(child,
                                               node,
@@ -2314,7 +2314,7 @@ static uint32_t convert_miniscript_wrapper_flag(const char *wrapper)
     size_t max = sizeof(miniscript_wrapper_table) / sizeof(struct miniscript_wrapper_item_t);
 
     for (index = 0; index < max; ++index) {
-        if (strchr(wrapper, miniscript_wrapper_table[index].name[0]) != NULL) {
+        if (strchr(wrapper, miniscript_wrapper_table[index].name[0])) {
             result |= (uint32_t)miniscript_wrapper_table[index].kind;
         }
     }
@@ -2413,7 +2413,7 @@ static int convert_bip32_path_to_array(
             array[index] = 0;
         } else {
             value = strtol(addr, &err_ptr, 10);
-            if ((err_ptr != NULL && *err_ptr != '\0') || (value < 0)) {
+            if ((err_ptr && *err_ptr != '\0') || (value < 0)) {
                 ret = WALLY_EINVAL;
                 break;
             }
@@ -2916,7 +2916,7 @@ static int analyze_miniscript_key(
         node->derive_path_len = (uint32_t)strlen(node->derive_path);
         *buf = '\0';
         str_len = strlen(node->data);
-        if (strchr(node->derive_path, '*') != NULL)
+        if (strchr(node->derive_path, '*'))
             node->is_derive = true;
     }
 
@@ -3039,7 +3039,7 @@ static int analyze_miniscript_value(
     }
 
     node->number = strtoll(node->data, &err_ptr, 10);
-    if ((err_ptr == NULL) || (*err_ptr == '\0')) {
+    if (!err_ptr || !*err_ptr) {
         node->kind = DESCRIPTOR_KIND_NUMBER;
         node->type_properties = MINISCRIPT_TYPE_B | MINISCRIPT_PROPERTY_Z |
                                 MINISCRIPT_PROPERTY_U | MINISCRIPT_PROPERTY_M |
@@ -3223,7 +3223,7 @@ static int analyze_miniscript(
         if (!checksum_index)
             *script_ignore_checksum = wally_strdup(miniscript);
 
-        if (*script_ignore_checksum == NULL)
+        if (!*script_ignore_checksum)
             ret = WALLY_ENOMEM;
     }
 
@@ -3758,11 +3758,8 @@ int wally_descriptor_create_checksum(
         return ret;
 
     ret = generate_descriptor_checksum(ignore_checksum_descriptor, checksum);
-    if (ret == WALLY_OK) {
-        *output = wally_strdup(checksum);
-        if (*output == NULL)
-            ret = WALLY_ENOMEM;
-    }
+    if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
+        ret = WALLY_ENOMEM;
     wally_free_string(ignore_checksum_descriptor);
     return ret;
 }
