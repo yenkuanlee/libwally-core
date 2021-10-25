@@ -326,18 +326,18 @@ static int generate_script_from_number(
     size_t *write_len);
 
 /* Function */
-static int check_ascii_string(const char *message, size_t max)
+static bool is_ascii_string(const char *message, size_t max_len)
 {
-    size_t index;
-
     if (!message)
-        return WALLY_EINVAL;
+        return false;
 
-    for (index = 0; message[index] != '\0'; ++index)
-        if ((message[index] < 0x20) || (message[index] == 0x7f) || (index > max))
-            return WALLY_EINVAL;
-
-    return WALLY_OK;
+    max_len += 1;
+    while (*message && max_len--) {
+        if (*message < ' ' || *message > '~')
+            return false;
+        ++message;
+    }
+    return max_len != 0;
 }
 
 static int realloc_substr_buffer(size_t need_len, char **buffer, size_t *buffer_len)
@@ -3362,15 +3362,15 @@ static int parse_miniscript(
     if (((flags & ~0x1) != 0) ||
         !miniscript || (array_len && (!key_name_array || !key_value_array)) ||
         (!array_len && (key_name_array || key_value_array)) ||
-        check_ascii_string(miniscript, DESCRIPTOR_LIMIT_LENGTH))
+        !is_ascii_string(miniscript, DESCRIPTOR_LIMIT_LENGTH))
         return WALLY_EINVAL;
 
     if (array_len) {
         for (index = 0; index < array_len; ++index) {
             if (!key_name_array[index] || !key_value_array[index])
                 return WALLY_EINVAL;
-            if (check_ascii_string(key_name_array[index], DESCRIPTOR_KEY_NAME_MAX_LENGTH) ||
-                check_ascii_string(key_value_array[index], DESCRIPTOR_KEY_VALUE_MAX_LENGTH)) {
+            if (!is_ascii_string(key_name_array[index], DESCRIPTOR_KEY_NAME_MAX_LENGTH) ||
+                !is_ascii_string(key_value_array[index], DESCRIPTOR_KEY_VALUE_MAX_LENGTH)) {
                 return WALLY_EINVAL;
             }
         }
