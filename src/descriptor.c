@@ -3733,7 +3733,7 @@ int wally_descriptor_create_checksum(
     char **output)
 {
     int ret = WALLY_OK;
-    char checksum[9];
+    char checksum[DESCRIPTOR_CHECKSUM_LENGTH + 1];
     char *ignore_checksum_descriptor = NULL;
 
     if (!descriptor || !output || flags)
