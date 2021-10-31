@@ -6,8 +6,8 @@
 
 #include <include/wally_address.h>
 #include <include/wally_bip32.h>
-#include <include/wally_core.h>
 #include <include/wally_crypto.h>
+#include <include/wally_psbt.h>
 #include <include/wally_script.h>
 #include <include/wally_descriptor.h>
 
@@ -2973,17 +2973,14 @@ static int analyze_miniscript_key(
 
 static int analyze_miniscript_value(
     const char *message,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t *network,
     uint32_t flags,
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent_node)
 {
     int ret;
-    size_t index;
-    size_t str_len;
+    size_t message_len;
     size_t buf_len;
     char *buf = NULL;
     char *err_ptr = NULL;
@@ -2995,29 +2992,31 @@ static int analyze_miniscript_value(
     if (network && !(addr_item = netaddr_from_network(*network)))
         return WALLY_EINVAL; /* Unknown network */
 
-    str_len = strlen(message);
-
     if (parent_node && (parent_node->info->kind == DESCRIPTOR_KIND_DESCRIPTOR_ADDR))
         return analyze_miniscript_addr(message, node, parent_node, addr_item, NULL, 0, NULL);
 
-    /* check key_name_array */
-    if (array_len) {
-        for (index = 0; index < array_len; ++index) {
-            if (strncmp(message, key_name_array[index], str_len + 1) == 0) {
-                node->data = wally_strdup(key_value_array[index]);
-                if (!node->data)
-                    return WALLY_ENOMEM;
+    message_len = strlen(message);
 
-                str_len = strlen(node->data);
-                node->data_size = (uint32_t)str_len;
-                break;
+    if (vars_in) {
+        /* Lookup map provided, map the message if found */
+        size_t found_idx;
+        ret = wally_map_find(vars_in, (const unsigned char *)message, message_len + 1, &found_idx);
+        if (ret == WALLY_OK && found_idx) {
+            node->data = wally_strdup((const char *)vars_in->items[found_idx - 1].value);
+            if (!node->data)
+                ret = WALLY_ENOMEM;
+            else {
+                message_len = vars_in->items[found_idx - 1].value_len - 1;
+                node->data_size = message_len;
             }
         }
+        if (ret != WALLY_OK)
+            return ret;
     }
 
     if (!node->data) {
         node->data = wally_strdup(message);
-        node->data_size = (uint32_t)str_len;
+        node->data_size = message_len;
     }
 
     if (parent_node &&
@@ -3030,7 +3029,7 @@ static int analyze_miniscript_value(
         if (!buf)
             return WALLY_ENOMEM;
 
-        ret = wally_hex_to_bytes(node->data, (unsigned char *)buf, str_len, &buf_len);
+        ret = wally_hex_to_bytes(node->data, (unsigned char *)buf, message_len, &buf_len);
         if (ret == WALLY_OK) {
             node->kind = DESCRIPTOR_KIND_RAW;
         }
@@ -3058,9 +3057,7 @@ static int analyze_miniscript_value(
 
 static int analyze_miniscript(
     const char *miniscript,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t target,
     uint32_t *network,
     uint32_t flags,
@@ -3163,9 +3160,7 @@ static int analyze_miniscript(
             memcpy(sub_str, &miniscript[child_offset], index - child_offset);
             sub_str[index - child_offset] = '\0';
             ret = analyze_miniscript(sub_str,
-                                     key_name_array,
-                                     key_value_array,
-                                     array_len,
+                                     vars_in,
                                      target,
                                      network,
                                      flags,
@@ -3188,9 +3183,7 @@ static int analyze_miniscript(
 
     if ((ret == WALLY_OK) && !exist_indent)
         ret = analyze_miniscript_value(miniscript,
-                                       key_name_array,
-                                       key_value_array,
-                                       array_len,
+                                       vars_in,
                                        network,
                                        flags,
                                        node,
@@ -3330,9 +3323,7 @@ static int convert_script_from_node(
 
 static int parse_miniscript(
     const char *miniscript,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t flags,
     uint32_t target,
     uint32_t *network,
@@ -3344,7 +3335,7 @@ static int parse_miniscript(
     char **script_ignore_checksum)
 {
     int ret;
-    size_t index;
+    size_t i;
     unsigned char *work_script = NULL;
     size_t work_script_len = 0;
     unsigned char *temp_script = NULL;
@@ -3352,35 +3343,30 @@ static int parse_miniscript(
     size_t write_len;
     struct miniscript_node_t *top_node = NULL;
 
-    if (((flags & ~0x1) != 0) ||
-        !miniscript || (array_len && (!key_name_array || !key_value_array)) ||
-        (!array_len && (key_name_array || key_value_array)) ||
+    if (((flags & ~0x1) != 0) || !miniscript ||
         !is_ascii_string(miniscript, DESCRIPTOR_LIMIT_LENGTH))
         return WALLY_EINVAL;
 
-    if (array_len) {
-        for (index = 0; index < array_len; ++index) {
-            if (!key_name_array[index] || !key_value_array[index])
-                return WALLY_EINVAL;
-            if (!is_ascii_string(key_name_array[index], DESCRIPTOR_KEY_NAME_MAX_LENGTH) ||
-                !is_ascii_string(key_value_array[index], DESCRIPTOR_KEY_VALUE_MAX_LENGTH)) {
+    if (vars_in) {
+        for (i = 0; i < vars_in->num_items; ++i) {
+            if (!is_ascii_string((char *)vars_in->items[i].key, DESCRIPTOR_KEY_NAME_MAX_LENGTH) ||
+                !is_ascii_string((char *)vars_in->items[i].value, DESCRIPTOR_KEY_VALUE_MAX_LENGTH)) {
                 return WALLY_EINVAL;
             }
         }
     }
 
-    ret = analyze_miniscript(miniscript, key_name_array, key_value_array, array_len,
-                             target, network, flags,
+    ret = analyze_miniscript(miniscript, vars_in, target, network, flags,
                              NULL, NULL, &top_node, script_ignore_checksum);
     if ((ret == WALLY_OK) && (target & DESCRIPTOR_KIND_DESCRIPTOR) &&
         (!top_node->info || !(top_node->info->kind & DESCRIPTOR_KIND_DESCRIPTOR)))
         ret = WALLY_EINVAL;
     if ((ret == WALLY_OK) && script_item) {
-        for (index = 0; index < item_len; ++index) {
+        for (i = 0; i < item_len; ++i) {
             write_len = 0;
 
-            temp_script = script_item[index].script;
-            temp_script_len = script_item[index].script_len;
+            temp_script = script_item[i].script;
+            temp_script_len = script_item[i].script_len;
             if (!temp_script) {
                 if (!work_script) {
                     if (!(work_script = wally_malloc(DESCRIPTOR_LIMIT_LENGTH))) {
@@ -3392,20 +3378,20 @@ static int parse_miniscript(
                 temp_script = work_script;
                 temp_script_len = work_script_len;
             }
-            ret = convert_script_from_node(top_node, script_item[index].child_num,
+            ret = convert_script_from_node(top_node, script_item[i].child_num,
                                            descriptor_depth, descriptor_index,
                                            temp_script, temp_script_len,
                                            &write_len);
             if (ret != WALLY_OK)
                 break;
-            if (!script_item[index].script) {
-                if (!(script_item[index].script = wally_malloc(write_len))) {
+            if (!script_item[i].script) {
+                if (!(script_item[i].script = wally_malloc(write_len))) {
                     ret = WALLY_ENOMEM;
                     break;
                 }
-                memcpy(script_item[index].script, temp_script, write_len);
+                memcpy(script_item[i].script, temp_script, write_len);
             }
-            script_item[index].script_len = write_len;
+            script_item[i].script_len = write_len;
         }
     }
     if ((ret == WALLY_OK) && properties)
@@ -3497,34 +3483,30 @@ int wally_free_descriptor_addresses(
 
 int wally_descriptor_parse_miniscript(
     const char *miniscript,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t derive_child_num,
     uint32_t flags,
-    unsigned char *script,
-    size_t script_len,
+    unsigned char *bytes_out,
+    size_t len,
     size_t *written)
 {
     int ret;
     struct wally_descriptor_script_item script_item;
 
-    if (!script || !written || !script_len)
-        return WALLY_EINVAL;
-
     if (written)
         *written = 0;
 
+    if (!bytes_out || !written || !len)
+        return WALLY_EINVAL;
+
     wally_bzero(&script_item, sizeof(script_item));
     script_item.child_num = derive_child_num;
-    script_item.script = script;
-    script_item.script_len = script_len;
+    script_item.script = bytes_out;
+    script_item.script_len = len;
 
     ret = parse_miniscript(
         miniscript,
-        key_name_array,
-        key_value_array,
-        array_len,
+        vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT,
         NULL,
@@ -3541,16 +3523,14 @@ int wally_descriptor_parse_miniscript(
 
 int wally_descriptor_to_scriptpubkey(
     const char *descriptor,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t derive_child_num,
     uint32_t network,
     uint32_t target_depth,
     uint32_t target_index,
     uint32_t flags,
-    unsigned char *script,
-    size_t script_len,
+    unsigned char *bytes_out,
+    size_t len,
     size_t *written)
 {
     int ret;
@@ -3560,21 +3540,19 @@ int wally_descriptor_to_scriptpubkey(
     if (written)
         *written = 0;
 
-    if (!script || !written || !script_len)
+    if (!bytes_out || !written || !len)
         return WALLY_EINVAL;
 
     addr_item = netaddr_from_network(network);
 
     wally_bzero(&script_item, sizeof(script_item));
     script_item.child_num = derive_child_num;
-    script_item.script = script;
-    script_item.script_len = script_len;
+    script_item.script = bytes_out;
+    script_item.script_len = len;
 
     ret = parse_miniscript(
         descriptor,
-        key_name_array,
-        key_value_array,
-        array_len,
+        vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
         addr_item ? &network : NULL,
@@ -3591,9 +3569,7 @@ int wally_descriptor_to_scriptpubkey(
 
 int wally_descriptor_to_address(
     const char *descriptor,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t derive_child_num,
     uint32_t network,
     uint32_t flags,
@@ -3611,9 +3587,7 @@ int wally_descriptor_to_address(
 
     ret = parse_miniscript(
         descriptor,
-        key_name_array,
-        key_value_array,
-        array_len,
+        vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
         (!addr_item) ? NULL : &network,
@@ -3638,9 +3612,7 @@ int wally_descriptor_to_address(
 
 int wally_descriptor_to_addresses(
     const char *descriptor,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t start_child_num,
     uint32_t end_child_num,
     uint32_t network,
@@ -3680,9 +3652,7 @@ int wally_descriptor_to_addresses(
 
     ret = parse_miniscript(
         descriptor,
-        key_name_array,
-        key_value_array,
-        array_len,
+        vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
         (!addr_item) ? NULL : &network,
@@ -3726,9 +3696,7 @@ int wally_descriptor_to_addresses(
 
 int wally_descriptor_create_checksum(
     const char *descriptor,
-    const char **key_name_array,
-    const char **key_value_array,
-    size_t array_len,
+    const struct wally_map *vars_in,
     uint32_t flags,
     char **output)
 {
@@ -3742,9 +3710,7 @@ int wally_descriptor_create_checksum(
     wally_bzero(checksum, sizeof(checksum));
     ret = parse_miniscript(
         descriptor,
-        key_name_array,
-        key_value_array,
-        array_len,
+        vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
         NULL,

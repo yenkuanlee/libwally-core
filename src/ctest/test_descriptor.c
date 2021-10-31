@@ -4,6 +4,7 @@
 #include <wally_address.h>
 #include <wally_crypto.h>
 #include <wally_descriptor.h>
+#include <wally_psbt.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -83,36 +84,30 @@ struct wally_descriptor_err_test {
     const uint32_t network;
 };
 
-static const char *const g_miniscript_keyname_list[] = {
-    "key_1",
-    "key_2",
-    "key_3",
-    "key_likely",
-    "key_unlikely",
-    "key_user",
-    "key_service",
-    "key_local",
-    "key_remote",
-    "key_revocation",
-    "H", /* HASH160(key_local) */
+#define B(str) (unsigned char *)(str), sizeof(str)
+
+static struct wally_map_item g_key_map_items[] = {
+    { B("key_1"), B("038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048") },
+    { B("key_2"), B("03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7") },
+    { B("key_3"), B("03b428da420cd337c7208ed42c5331ebb407bb59ffbe3dc27936a227c619804284") },
+    { B("key_likely"), B("038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048") },
+    { B("key_unlikely"), B("03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7") },
+    { B("key_user"), B("038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048") },
+    { B("key_service"), B("03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7") },
+    { B("key_local"), B("038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048") },
+    { B("key_remote"), B("03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7") },
+    { B("key_revocation"), B("03b428da420cd337c7208ed42c5331ebb407bb59ffbe3dc27936a227c619804284") },
+    { B("H"), B("d0721279e70d39fb4aa409b52839a0056454e3b5") } /* HASH160(key_local) */
+};
+
+static struct wally_map g_key_map = {
+    g_key_map_items,
+    sizeof(g_key_map_items) / sizeof(g_key_map_items[0]),
+    sizeof(g_key_map_items) / sizeof(g_key_map_items[0])
 };
 
 static const uint32_t g_miniscript_index_0 = 0;
 static const uint32_t g_miniscript_index_16 = 0x10;
-
-static const char *const g_miniscript_keyvalue_list[] = {
-    "038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048",
-    "03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7",
-    "03b428da420cd337c7208ed42c5331ebb407bb59ffbe3dc27936a227c619804284",
-    "038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048",
-    "03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7",
-    "038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048",
-    "03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7",
-    "038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048",
-    "03a22745365f673e658f0d25eb0afa9aaece858c6a48dfe37a67210c2e23da8ce7",
-    "03b428da420cd337c7208ed42c5331ebb407bb59ffbe3dc27936a227c619804284",
-    "d0721279e70d39fb4aa409b52839a0056454e3b5", /* HASH160(key_local) */
-};
 
 struct wally_miniscript_ref_test g_miniscript_ref_test_table[] = {
     /* Randomly generated test set that covers the majority of type and node type combinations */
@@ -884,8 +879,7 @@ struct wally_descriptor_err_test g_address_err_test_table[] = {
 
 static bool check_parse_miniscript(const char *function, const char *descriptor,
                                    const char *expected,
-                                   const char **key_name_list,
-                                   const char **key_value_list, size_t list_num,
+                                   const struct wally_map *map_in,
                                    uint32_t flags)
 {
     size_t written = 0;
@@ -897,9 +891,7 @@ static bool check_parse_miniscript(const char *function, const char *descriptor,
 
     ret = wally_descriptor_parse_miniscript(
         descriptor,
-        key_name_list,
-        key_value_list,
-        list_num,
+        map_in,
         index,
         flags,
         script,
@@ -949,9 +941,7 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
 
     ret = wally_descriptor_to_scriptpubkey(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         index,
         network,
         desc_depth,
@@ -973,9 +963,7 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
 
     ret = wally_descriptor_create_checksum(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         flag,
         &checksum);
     if (ret != WALLY_OK) {
@@ -1012,9 +1000,7 @@ static bool check_descriptor_to_scriptpubkey_depth(const char *function,
 
     ret = wally_descriptor_to_scriptpubkey(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         0,
         network,
         depth,
@@ -1056,9 +1042,7 @@ static bool check_descriptor_to_address(const char *function,
 
     ret = wally_descriptor_to_address(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         bip32_index,
         network,
         flag,
@@ -1093,9 +1077,7 @@ static bool check_descriptor_to_addresses(const char *function,
 
     ret = wally_descriptor_to_addresses(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         start_index,
         end_index,
         network,
@@ -1142,9 +1124,7 @@ static bool check_descriptor_scriptpubkey_error(const char *function,
 
     ret = wally_descriptor_to_scriptpubkey(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         0,
         network,
         desc_depth,
@@ -1174,9 +1154,7 @@ static bool check_descriptor_address_error(const char *function,
 
     ret = wally_descriptor_to_address(
         descriptor,
-        (const char **)g_miniscript_keyname_list,
-        (const char **)g_miniscript_keyvalue_list,
-        sizeof(g_miniscript_keyname_list) / sizeof(char *),
+        &g_key_map,
         0,
         network,
         flag,
@@ -1211,8 +1189,7 @@ int main(void)
         if (!check_parse_miniscript(
                 g_miniscript_ref_test_table[index].miniscript,
                 g_miniscript_ref_test_table[index].miniscript,
-                g_miniscript_ref_test_table[index].scriptpubkey,
-                NULL, NULL, 0, 0)) {
+                g_miniscript_ref_test_table[index].scriptpubkey, NULL, 0)) {
             printf("[%s] test failed!\n", g_miniscript_ref_test_table[index].miniscript);
             tests_ok = false;
         }
@@ -1222,8 +1199,7 @@ int main(void)
         if (!check_parse_miniscript(
                 g_miniscript_test_table[index].name,
                 g_miniscript_test_table[index].descriptor,
-                g_miniscript_test_table[index].scriptpubkey,
-                NULL, NULL, 0, 0)) {
+                g_miniscript_test_table[index].scriptpubkey, NULL, 0)) {
             printf("[%s] test failed!\n", g_miniscript_test_table[index].name);
             tests_ok = false;
         }
@@ -1234,8 +1210,7 @@ int main(void)
                 g_miniscript_taproot_test_table[index].miniscript,
                 g_miniscript_taproot_test_table[index].miniscript,
                 g_miniscript_taproot_test_table[index].scriptpubkey,
-                NULL, NULL, 0,
-                g_miniscript_taproot_test_table[index].flags)) {
+                NULL, g_miniscript_taproot_test_table[index].flags)) {
             printf("[%s] test failed!\n", g_miniscript_taproot_test_table[index].miniscript);
             tests_ok = false;
         }
