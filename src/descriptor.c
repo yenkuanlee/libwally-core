@@ -2649,7 +2649,7 @@ static uint64_t poly_mod_descriptor_checksum(uint64_t c, int val)
 /*
  * Derived from bitcoin core: bitcoin/src/script/descriptor.cpp function DescriptorChecksum()
  */
-static int generate_checksum(const char *src, size_t src_len, char *checksum)
+static int generate_checksum(const char *src, size_t src_len, char *checksum_out)
 {
     static const char *input_charset =
         "0123456789()[],'/*abcdefgh@:$%{}"
@@ -2699,9 +2699,9 @@ static int generate_checksum(const char *src, size_t src_len, char *checksum)
     c ^= 1;
 
     for (i = 0; i < DESCRIPTOR_CHECKSUM_LENGTH; ++i)
-        checksum[i] = checksum_charset[(c >> (5 * (7 - i))) & 31];
+        checksum_out[i] = checksum_charset[(c >> (5 * (7 - i))) & 31];
+    checksum_out[DESCRIPTOR_CHECKSUM_LENGTH] = '\0';
 
-    checksum[DESCRIPTOR_CHECKSUM_LENGTH] = '\0';
     return WALLY_OK;
 }
 
@@ -3037,7 +3037,7 @@ static int analyze_miniscript(
     struct miniscript_node_t *prev_node,
     struct miniscript_node_t *parent_node,
     struct miniscript_node_t **generate_node,
-    char **script_ignore_checksum)
+    char *checksum_out)
 {
     int ret = WALLY_OK;
     char *sub_str = NULL;
@@ -3051,9 +3051,7 @@ static int analyze_miniscript(
     bool exist_indent = false;
     bool copy_child = false;
     char buffer[64];
-    char checksum[12];
-    char work_checksum[12];
-    size_t checksum_len = 0;
+    char checksum[DESCRIPTOR_CHECKSUM_LENGTH + 1];
     size_t checksum_index = 0;
     struct miniscript_node_t *node;
     struct miniscript_node_t *child = NULL;
@@ -3066,8 +3064,6 @@ static int analyze_miniscript(
 
     wally_bzero(node, sizeof(struct miniscript_node_t));
     wally_bzero(buffer, sizeof(buffer));
-    wally_bzero(checksum, sizeof(checksum));
-    wally_bzero(work_checksum, sizeof(work_checksum));
     if (parent_node)
         node->parent = parent_node;
 
@@ -3115,12 +3111,8 @@ static int analyze_miniscript(
         } else if (miniscript[index] == '#') {
             if (!parent_node && node->info && !collect_child && (indent == 0)) {
                 checksum_index = index;
-                checksum_len = strlen(&miniscript[index + 1]);
-                if (sizeof(checksum) > checksum_len) {
-                    memcpy(checksum, &miniscript[index + 1], checksum_len);
-                } else {
+                if (strlen(&miniscript[index + 1]) > DESCRIPTOR_CHECKSUM_LENGTH)
                     ret = WALLY_EINVAL;
-                }
                 break;  /* end */
             }
         }
@@ -3170,27 +3162,16 @@ static int analyze_miniscript(
     if (ret == WALLY_OK && node->info && node->info->verify_function)
         ret = node->info->verify_function(node, parent_node);
 
-    if (ret == WALLY_OK && !parent_node && checksum_index) {
-        /* check checksum */
-        ret = realloc_substr_buffer(checksum_index + 1, &sub_str, &sub_str_len);
-        if (ret == WALLY_OK) {
-            memcpy(sub_str, miniscript, checksum_index);
-            sub_str[checksum_index] = '\0';
-            if (script_ignore_checksum)
-                *script_ignore_checksum = wally_strdup(sub_str);
-
-            ret = generate_checksum(sub_str, checksum_index, work_checksum);
-            if (ret == WALLY_OK && memcmp(checksum, work_checksum, DESCRIPTOR_CHECKSUM_LENGTH) != 0) {
-                ret = WALLY_EINVAL;
-            }
+    if (ret == WALLY_OK && !parent_node && (checksum_index || checksum_out)) {
+        /* Checksum is present or has been requested, generate it */
+        char *checksum_p = checksum_out ? checksum_out : checksum;
+        size_t expr_len = checksum_index ? checksum_index : str_len;
+        ret = generate_checksum(miniscript, expr_len, checksum_p);
+        if (ret == WALLY_OK && checksum_index &&
+            strcmp(checksum_p, miniscript + checksum_index + 1) != 0) {
+            /* Computed checksum does not match the one in the expression */
+            ret = WALLY_EINVAL;
         }
-    }
-    if (ret == WALLY_OK && !parent_node && script_ignore_checksum) {
-        if (!checksum_index)
-            *script_ignore_checksum = wally_strdup(miniscript);
-
-        if (!*script_ignore_checksum)
-            ret = WALLY_ENOMEM;
     }
 
     if (ret == WALLY_OK && node->wrapper) {
@@ -3304,7 +3285,7 @@ static int parse_miniscript(
     struct wally_descriptor_script_item *script_item,
     size_t item_len,
     uint32_t *properties,
-    char **script_ignore_checksum)
+    char *checksum_out)
 {
     int ret;
     size_t i;
@@ -3329,7 +3310,7 @@ static int parse_miniscript(
     }
 
     ret = analyze_miniscript(miniscript, vars_in, target, network, flags,
-                             NULL, NULL, &top_node, script_ignore_checksum);
+                             NULL, NULL, &top_node, checksum_out);
     if (ret == WALLY_OK && (target & DESCRIPTOR_KIND_DESCRIPTOR) &&
         (!top_node->info || !(top_node->info->kind & DESCRIPTOR_KIND_DESCRIPTOR)))
         ret = WALLY_EINVAL;
@@ -3369,8 +3350,6 @@ static int parse_miniscript(
     if (ret == WALLY_OK && properties)
         *properties = top_node->type_properties;
 
-    if (ret != WALLY_OK && script_ignore_checksum)
-        wally_free_string(*script_ignore_checksum);
     clear_and_free(work_script, work_script_len);
     free_miniscript_node(top_node);
     return ret;
@@ -3654,23 +3633,11 @@ int wally_descriptor_create_checksum(const char *descriptor,
     if (!descriptor || !output || flags)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(
-        descriptor,
-        vars_in,
-        flags,
-        DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        NULL,
-        0,
-        0,
-        NULL,
-        0,
-        NULL,
-        NULL);
+    ret = parse_miniscript(descriptor, vars_in, flags,
+                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+                           NULL, 0, 0, NULL, 0, NULL, checksum);
 
-    if (ret == WALLY_OK) {
-        ret = generate_checksum(descriptor, strlen(descriptor), checksum);
-        if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
-            ret = WALLY_ENOMEM;
-    }
+    if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
+        ret = WALLY_ENOMEM;
     return ret;
 }
