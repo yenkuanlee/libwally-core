@@ -2646,27 +2646,11 @@ static uint64_t poly_mod_descriptor_checksum(uint64_t c, int val)
     return c;
 }
 
-static int generate_descriptor_checksum(const char *descriptor, char *checksum)
+/*
+ * Derived from bitcoin core: bitcoin/src/script/descriptor.cpp function DescriptorChecksum()
+ */
+static int generate_checksum(const char *src, size_t src_len, char *checksum)
 {
-    /*
-     * base:
-     * bitcoin/src/script/descriptor.cpp
-     * std::string DescriptorChecksum(const Span<const char>& span)
-     */
-
-    /** A character set designed such that:
-     *  - The most common 'unprotected' descriptor characters (hex, keypaths) are in the first group of 32.
-     *  - Case errors cause an offset that's a multiple of 32.
-     *  - As many alphabetic characters are in the same group (while following the above restrictions).
-     *
-     * If p(x) gives the position of a character c in this character set, every group of 3 characters
-     * (a,b,c) is encoded as the 4 symbols (p(a) & 31, p(b) & 31, p(c) & 31, (p(a) / 32) + 3 * (p(b) / 32) + 9 * (p(c) / 32).
-     * This means that changes that only affect the lower 5 bits of the position, or only the higher 2 bits, will just
-     * affect a single symbol.
-     *
-     * As a result, within-group-of-32 errors count as 1 symbol, as do cross-group errors that don't affect
-     * the position within the groups.
-     */
     static const char *input_charset =
         "0123456789()[],'/*abcdefgh@:$%{}"
         "IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~"
@@ -2679,14 +2663,18 @@ static int generate_descriptor_checksum(const char *descriptor, char *checksum)
     uint64_t c = 1;
     int cls = 0;
     int clscount = 0;
-    int j;
     char ch;
     size_t pos;
     size_t max = strlen(input_charset);
-    size_t idx;
+    size_t i;
 
-    for (idx = 0; idx < strlen(descriptor); ++idx) {
-        ch = descriptor[idx];
+    if (src_len > DESCRIPTOR_CHECKSUM_LENGTH && src[src_len - DESCRIPTOR_CHECKSUM_LENGTH - 1] == '#') {
+        /* Ignore any existing checksum when calculating the checksum */
+        src_len = src_len - DESCRIPTOR_CHECKSUM_LENGTH - 1;
+    }
+
+    for (i = 0; i < src_len; ++i) {
+        ch = src[i];
         for (pos = 0; pos < max; ++pos) {
             if (ch == input_charset[pos])
                 break;
@@ -2706,13 +2694,14 @@ static int generate_descriptor_checksum(const char *descriptor, char *checksum)
     }
     if (clscount > 0)
         c = poly_mod_descriptor_checksum(c, cls);
-    for (j = 0; j < 8; ++j)
+    for (i = 0; i < DESCRIPTOR_CHECKSUM_LENGTH; ++i)
         c = poly_mod_descriptor_checksum(c, 0);
     c ^= 1;
 
-    for (j = 0; j < DESCRIPTOR_CHECKSUM_LENGTH; ++j)
-        checksum[j] = checksum_charset[(c >> (5 * (7 - j))) & 31];
+    for (i = 0; i < DESCRIPTOR_CHECKSUM_LENGTH; ++i)
+        checksum[i] = checksum_charset[(c >> (5 * (7 - i))) & 31];
 
+    checksum[DESCRIPTOR_CHECKSUM_LENGTH] = '\0';
     return WALLY_OK;
 }
 
@@ -3190,7 +3179,7 @@ static int analyze_miniscript(
             if (script_ignore_checksum)
                 *script_ignore_checksum = wally_strdup(sub_str);
 
-            ret = generate_descriptor_checksum(sub_str, work_checksum);
+            ret = generate_checksum(sub_str, checksum_index, work_checksum);
             if (ret == WALLY_OK && memcmp(checksum, work_checksum, DESCRIPTOR_CHECKSUM_LENGTH) != 0) {
                 ret = WALLY_EINVAL;
             }
@@ -3652,20 +3641,19 @@ int wally_descriptor_to_addresses(
     return ret;
 }
 
-int wally_descriptor_create_checksum(
-    const char *descriptor,
-    const struct wally_map *vars_in,
-    uint32_t flags,
-    char **output)
+int wally_descriptor_create_checksum(const char *descriptor,
+                                     const struct wally_map *vars_in, uint32_t flags,
+                                     char **output)
 {
-    int ret = WALLY_OK;
     char checksum[DESCRIPTOR_CHECKSUM_LENGTH + 1];
-    char *ignore_checksum_descriptor = NULL;
+    int ret;
+
+    if (output)
+        *output = NULL;
 
     if (!descriptor || !output || flags)
         return WALLY_EINVAL;
 
-    wally_bzero(checksum, sizeof(checksum));
     ret = parse_miniscript(
         descriptor,
         vars_in,
@@ -3677,13 +3665,12 @@ int wally_descriptor_create_checksum(
         NULL,
         0,
         NULL,
-        &ignore_checksum_descriptor);
-    if (ret != WALLY_OK)
-        return ret;
+        NULL);
 
-    ret = generate_descriptor_checksum(ignore_checksum_descriptor, checksum);
-    if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
-        ret = WALLY_ENOMEM;
-    wally_free_string(ignore_checksum_descriptor);
+    if (ret == WALLY_OK) {
+        ret = generate_checksum(descriptor, strlen(descriptor), checksum);
+        if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
+            ret = WALLY_ENOMEM;
+    }
     return ret;
 }
