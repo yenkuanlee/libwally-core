@@ -347,6 +347,38 @@ inline int cleanup(uint32_t flags) {
     return ret;
 }
 
+template <class DESCRIPTOR, class VARS_IN>
+inline int descriptor_create_checksum(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t flags, char** output) {
+    int ret = ::wally_descriptor_create_checksum(detail::get_p(descriptor), detail::get_p(vars_in), flags, output);
+    return ret;
+}
+
+template <class MINISCRIPT, class VARS_IN, class BYTES_OUT>
+inline int descriptor_parse_miniscript(const MINISCRIPT& miniscript, const VARS_IN& vars_in, uint32_t derive_child_num, uint32_t flags, BYTES_OUT& bytes_out, size_t* written = 0) {
+    size_t n;
+    int ret = ::wally_descriptor_parse_miniscript(detail::get_p(miniscript), detail::get_p(vars_in), derive_child_num, flags, bytes_out.data(), bytes_out.size(), written ? written : &n);
+    return written || ret != WALLY_OK ? ret : n == static_cast<size_t>(bytes_out.size()) ? WALLY_OK : WALLY_EINVAL;
+}
+
+template <class DESCRIPTOR, class VARS_IN>
+inline int descriptor_to_address(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t derive_child_num, uint32_t network, uint32_t flags, char** output) {
+    int ret = ::wally_descriptor_to_address(detail::get_p(descriptor), detail::get_p(vars_in), derive_child_num, network, flags, output);
+    return ret;
+}
+
+template <class DESCRIPTOR, class VARS_IN>
+inline int descriptor_to_addresses(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t start_child_num, uint32_t end_child_num, uint32_t network, uint32_t flags, struct wally_descriptor_addresses* addresses) {
+    int ret = ::wally_descriptor_to_addresses(detail::get_p(descriptor), detail::get_p(vars_in), start_child_num, end_child_num, network, flags, addresses);
+    return ret;
+}
+
+template <class DESCRIPTOR, class VARS_IN, class BYTES_OUT>
+inline int descriptor_to_scriptpubkey(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t derive_child_num, uint32_t network, uint32_t target_depth, uint32_t target_index, uint32_t flags, BYTES_OUT& bytes_out, size_t* written = 0) {
+    size_t n;
+    int ret = ::wally_descriptor_to_scriptpubkey(detail::get_p(descriptor), detail::get_p(vars_in), derive_child_num, network, target_depth, target_index, flags, bytes_out.data(), bytes_out.size(), written ? written : &n);
+    return written || ret != WALLY_OK ? ret : n == static_cast<size_t>(bytes_out.size()) ? WALLY_OK : WALLY_EINVAL;
+}
+
 template <class PRIV_KEY>
 inline int ec_private_key_verify(const PRIV_KEY& priv_key) {
     int ret = ::wally_ec_private_key_verify(priv_key.data(), priv_key.size());
@@ -425,6 +457,11 @@ inline int format_bitcoin_message(const BYTES& bytes, uint32_t flags, BYTES_OUT&
     size_t n;
     int ret = ::wally_format_bitcoin_message(bytes.data(), bytes.size(), flags, bytes_out.data(), bytes_out.size(), written ? written : &n);
     return written || ret != WALLY_OK ? ret : n == static_cast<size_t>(bytes_out.size()) ? WALLY_OK : WALLY_EINVAL;
+}
+
+inline int free_descriptor_addresses(struct wally_descriptor_addresses* addresses) {
+    int ret = ::wally_free_descriptor_addresses(addresses);
+    return ret;
 }
 
 inline int free_string(char* str) {

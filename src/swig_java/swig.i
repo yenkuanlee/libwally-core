@@ -8,6 +8,7 @@
 #include "../include/wally_bip38.h"
 #include "../include/wally_bip39.h"
 #include "../include/wally_crypto.h"
+#include "../include/wally_descriptor.h"
 #include "../include/wally_psbt.h"
 #include "psbt_int.h"
 #include "../include/wally_script.h"
@@ -370,6 +371,7 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %java_opaque_struct(wally_tx, 6);
 %java_opaque_struct(wally_map, 7);
 %java_opaque_struct(wally_psbt, 8);
+%java_opaque_struct(wally_descriptor_addresses, 9);
 
 /* Our wrapped functions return types */
 %returns_void__(bip32_key_free);
@@ -444,6 +446,12 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_string(wally_confidential_addr_to_addr_segwit);
 %returns_array_(wally_confidential_addr_segwit_to_ec_public_key, 3, 4, EC_PUBLIC_KEY_LEN);
 %returns_string(wally_confidential_addr_from_addr_segwit);
+%returns_string(wally_descriptor_create_checksum);
+%returns_size_t(wally_descriptor_parse_miniscript);
+%returns_string(wally_descriptor_to_address);
+%returns_struct(wally_descriptor_to_addresses, wally_descriptor_addresses);
+%returns_size_t(wally_descriptor_to_scriptpubkey);
+%returns_void__(wally_free_descriptor_addresses)
 %returns_void__(wally_ec_private_key_verify);
 %returns_void__(wally_ec_public_key_verify);
 %returns_array_(wally_ec_public_key_decompress, 3, 4, EC_PUBLIC_KEY_UNCOMPRESSED_LEN);
@@ -853,6 +861,7 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %include "../include/wally_bip38.h"
 %include "../include/wally_bip39.h"
 %include "../include/wally_crypto.h"
+%include "../include/wally_descriptor.h"
 %include "../include/wally_psbt.h"
 %include "psbt_int.h"
 %include "../include/wally_script.h"
