@@ -2341,7 +2341,7 @@ static int convert_bip32_path_to_array(
     uint32_t array_num,
     bool is_private,
     uint32_t *count,
-    int8_t *astarisk_index)
+    int8_t *wildcard_pos_out)
 {
     int ret = WALLY_OK;
     char *buf;
@@ -2353,7 +2353,7 @@ static int convert_bip32_path_to_array(
     uint32_t *array;
     int32_t value;
     char *err_ptr = NULL;
-    int8_t asta_index = -1;
+    int8_t wildcard_pos = -1;
 
     buf = wally_strdup(path);
     if (!buf)
@@ -2401,11 +2401,11 @@ static int convert_bip32_path_to_array(
             ret = WALLY_EINVAL;
             break;
         }
-        if (asta_index != -1) {
+        if (wildcard_pos != -1) {
             ret = WALLY_EINVAL;
             break;
         } else if ((len == 1) && (addr[len - 1] == '*')) {
-            asta_index = (int8_t)index;
+            wildcard_pos = (int8_t)index;
             array[index] = 0;
         } else {
             value = strtol(addr, &err_ptr, 10);
@@ -2430,8 +2430,8 @@ static int convert_bip32_path_to_array(
 
     if ((ret == WALLY_OK) && bip32_array) {
         memcpy(bip32_array, array, sizeof(uint32_t) * index);
-        if (astarisk_index)
-            *astarisk_index = asta_index;
+        if (wildcard_pos_out)
+            *wildcard_pos_out = wildcard_pos;
         if (count)
             *count = (uint32_t)index;
     }
@@ -2584,7 +2584,7 @@ static int generate_script_from_miniscript(
         struct ext_key extkey;
         struct ext_key derive_extkey;
         uint32_t bip32_array[DESCRIPTOR_BIP32_PATH_NUM_MAX];
-        int8_t astarisk_index = -1;
+        int8_t wildcard_pos = -1;
         uint32_t count = 0;
 
         wally_bzero(&extkey, sizeof(struct ext_key));
@@ -2617,12 +2617,12 @@ static int generate_script_from_miniscript(
             ret = convert_bip32_path_to_array(node->derive_path, bip32_array,
                                               DESCRIPTOR_BIP32_PATH_NUM_MAX,
                                               (node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY),
-                                              &count, &astarisk_index);
+                                              &count, &wildcard_pos);
             if (ret != WALLY_OK)
                 return ret;
 
-            if (astarisk_index >= 0)
-                bip32_array[astarisk_index] |= child_num;
+            if (wildcard_pos >= 0)
+                bip32_array[wildcard_pos] |= child_num;
 
             ret = bip32_key_from_parent_path(&extkey, bip32_array, count,
                                              BIP32_FLAG_KEY_PUBLIC, &derive_extkey);
