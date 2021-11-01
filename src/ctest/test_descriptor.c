@@ -85,6 +85,7 @@ struct wally_descriptor_err_test {
 };
 
 #define B(str) (unsigned char *)(str), sizeof(str)
+#define NUM_ELEMS(a) (sizeof(a) / sizeof(a[0]))
 
 static struct wally_map_item g_key_map_items[] = {
     { B("key_1"), B("038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048") },
@@ -102,8 +103,8 @@ static struct wally_map_item g_key_map_items[] = {
 
 static struct wally_map g_key_map = {
     g_key_map_items,
-    sizeof(g_key_map_items) / sizeof(g_key_map_items[0]),
-    sizeof(g_key_map_items) / sizeof(g_key_map_items[0])
+    NUM_ELEMS(g_key_map_items),
+    NUM_ELEMS(g_key_map_items)
 };
 
 static const uint32_t g_miniscript_index_0 = 0;
@@ -1072,7 +1073,7 @@ static bool check_descriptor_to_addresses(const char *function,
     struct wally_descriptor_addresses addresses = {NULL, 0};
     int ret;
     uint32_t flag = 0;
-    uint32_t index = 0;
+    size_t i = 0;
     bool is_success = true;
 
     ret = wally_descriptor_to_addresses(
@@ -1091,17 +1092,17 @@ static bool check_descriptor_to_addresses(const char *function,
     if (addresses.num_items != address_list_len) {
         printf("%s:\n  Address length: %zu\n  Expect: %zu\n", function, addresses.num_items, address_list_len);
     } else {
-        for (index = 0; index < address_list_len; ++index) {
-            const char *expected_address = expected_address_list[index];
-            const char *addr = addresses.items[index].address;
-            uint32_t child_num = addresses.items[index].child_num;
-            uint32_t exp_child_num = start_index + index;
+        for (i = 0; i < address_list_len; ++i) {
+            const char *expected_address = expected_address_list[i];
+            const char *addr = addresses.items[i].address;
+            uint32_t child_num = addresses.items[i].child_num;
+            uint32_t exp_child_num = start_index + i;
             if (strncmp(expected_address, addr, strlen(expected_address) + 1) != 0) {
-                printf("%s:\n  Address[%u]: %s\n  Expect: %s\n", function, index, addr, expected_address_list[index]);
+                printf("%s:\n  Address[%u]: %s\n  Expect: %s\n", function, (uint32_t)i, addr, expected_address_list[i]);
                 is_success = false;
             }
             if (child_num != exp_child_num) {
-                printf("%s:\n  childNum[%u]: %u\n  Expect: %u\n", function, index, child_num, exp_child_num);
+                printf("%s:\n  childNum[%u]: %u\n  Expect: %u\n", function, (uint32_t)i, child_num, exp_child_num);
                 is_success = false;
             }
         }
@@ -1174,114 +1175,105 @@ static bool check_descriptor_address_error(const char *function,
 int main(void)
 {
     bool tests_ok = true;
-    size_t index;
-    size_t miniscript_ref_max = sizeof(g_miniscript_ref_test_table) / sizeof(struct wally_miniscript_ref_test);
-    size_t miniscript_max = sizeof(g_miniscript_test_table) / sizeof(struct wally_miniscript_test);
-    size_t miniscript_tr_max = sizeof(g_miniscript_taproot_test_table) / sizeof(struct wally_miniscript_taproot_test);
-    size_t desc_max = sizeof(g_descriptor_test_table) / sizeof(struct wally_descriptor_test);
-    size_t desc_depth_max = sizeof(g_descriptor_depth_test_table) / sizeof(struct wally_descriptor_depth_test);
-    size_t addr_max = sizeof(g_descriptor_address_test_table) / sizeof(struct wally_descriptor_address_test);
-    size_t addr_list_max = sizeof(g_descriptor_addresses_test_table) / sizeof(struct wally_descriptor_address_list_test);
-    size_t desc_err_max = sizeof(g_descriptor_err_test_table) / sizeof(struct wally_descriptor_err_test);
-    size_t addr_err_max = sizeof(g_address_err_test_table) / sizeof(struct wally_descriptor_err_test);
+    size_t i;
 
-    for (index = 0; index < miniscript_ref_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_ref_test_table); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_ref_test_table[index].miniscript,
-                g_miniscript_ref_test_table[index].miniscript,
-                g_miniscript_ref_test_table[index].scriptpubkey, NULL, 0)) {
-            printf("[%s] test failed!\n", g_miniscript_ref_test_table[index].miniscript);
+                g_miniscript_ref_test_table[i].miniscript,
+                g_miniscript_ref_test_table[i].miniscript,
+                g_miniscript_ref_test_table[i].scriptpubkey, NULL, 0)) {
+            printf("[%s] test failed!\n", g_miniscript_ref_test_table[i].miniscript);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < miniscript_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_test_table); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_test_table[index].name,
-                g_miniscript_test_table[index].descriptor,
-                g_miniscript_test_table[index].scriptpubkey, NULL, 0)) {
-            printf("[%s] test failed!\n", g_miniscript_test_table[index].name);
+                g_miniscript_test_table[i].name,
+                g_miniscript_test_table[i].descriptor,
+                g_miniscript_test_table[i].scriptpubkey, NULL, 0)) {
+            printf("[%s] test failed!\n", g_miniscript_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < miniscript_tr_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_taproot_test_table); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_taproot_test_table[index].miniscript,
-                g_miniscript_taproot_test_table[index].miniscript,
-                g_miniscript_taproot_test_table[index].scriptpubkey,
-                NULL, g_miniscript_taproot_test_table[index].flags)) {
-            printf("[%s] test failed!\n", g_miniscript_taproot_test_table[index].miniscript);
+                g_miniscript_taproot_test_table[i].miniscript,
+                g_miniscript_taproot_test_table[i].miniscript,
+                g_miniscript_taproot_test_table[i].scriptpubkey,
+                NULL, g_miniscript_taproot_test_table[i].flags)) {
+            printf("[%s] test failed!\n", g_miniscript_taproot_test_table[i].miniscript);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < desc_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_test_table); ++i) {
         if (!check_descriptor_to_scriptpubkey(
-                g_descriptor_test_table[index].name,
-                g_descriptor_test_table[index].descriptor,
-                g_descriptor_test_table[index].scriptpubkey,
-                g_descriptor_test_table[index].bip32_index,
-                g_descriptor_test_table[index].checksum)) {
-            printf("[%s] test failed!\n", g_descriptor_test_table[index].name);
+                g_descriptor_test_table[i].name,
+                g_descriptor_test_table[i].descriptor,
+                g_descriptor_test_table[i].scriptpubkey,
+                g_descriptor_test_table[i].bip32_index,
+                g_descriptor_test_table[i].checksum)) {
+            printf("[%s] test failed!\n", g_descriptor_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < desc_depth_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_depth_test_table); ++i) {
         if (!check_descriptor_to_scriptpubkey_depth(
-                g_descriptor_depth_test_table[index].name,
-                g_descriptor_depth_test_table[index].descriptor,
-                g_descriptor_depth_test_table[index].depth,
-                g_descriptor_depth_test_table[index].index,
-                g_descriptor_depth_test_table[index].scriptpubkey)) {
-            printf("[%s] keylist test failed!\n", g_descriptor_depth_test_table[index].name);
+                g_descriptor_depth_test_table[i].name,
+                g_descriptor_depth_test_table[i].descriptor,
+                g_descriptor_depth_test_table[i].depth,
+                g_descriptor_depth_test_table[i].index,
+                g_descriptor_depth_test_table[i].scriptpubkey)) {
+            printf("[%s] keylist test failed!\n", g_descriptor_depth_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < addr_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_address_test_table); ++i) {
         if (!check_descriptor_to_address(
-                g_descriptor_address_test_table[index].name,
-                g_descriptor_address_test_table[index].descriptor,
-                g_descriptor_address_test_table[index].bip32_index,
-                g_descriptor_address_test_table[index].network,
-                g_descriptor_address_test_table[index].address)) {
-            printf("[%s] test failed!\n", g_descriptor_address_test_table[index].name);
+                g_descriptor_address_test_table[i].name,
+                g_descriptor_address_test_table[i].descriptor,
+                g_descriptor_address_test_table[i].bip32_index,
+                g_descriptor_address_test_table[i].network,
+                g_descriptor_address_test_table[i].address)) {
+            printf("[%s] test failed!\n", g_descriptor_address_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < addr_list_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_addresses_test_table); ++i) {
         if (!check_descriptor_to_addresses(
-                g_descriptor_addresses_test_table[index].name,
-                g_descriptor_addresses_test_table[index].descriptor,
-                g_descriptor_addresses_test_table[index].start_index,
-                g_descriptor_addresses_test_table[index].end_index,
-                g_descriptor_addresses_test_table[index].network,
-                g_descriptor_addresses_test_table[index].address_list,
-                g_descriptor_addresses_test_table[index].address_list_num)) {
-            printf("[%s] test failed!\n", g_descriptor_addresses_test_table[index].name);
+                g_descriptor_addresses_test_table[i].name,
+                g_descriptor_addresses_test_table[i].descriptor,
+                g_descriptor_addresses_test_table[i].start_index,
+                g_descriptor_addresses_test_table[i].end_index,
+                g_descriptor_addresses_test_table[i].network,
+                g_descriptor_addresses_test_table[i].address_list,
+                g_descriptor_addresses_test_table[i].address_list_num)) {
+            printf("[%s] test failed!\n", g_descriptor_addresses_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < desc_err_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_err_test_table); ++i) {
         if (!check_descriptor_scriptpubkey_error(
-                g_descriptor_err_test_table[index].name,
-                g_descriptor_err_test_table[index].descriptor,
-                g_descriptor_err_test_table[index].network)) {
-            printf("[%s] test failed!\n", g_descriptor_err_test_table[index].name);
+                g_descriptor_err_test_table[i].name,
+                g_descriptor_err_test_table[i].descriptor,
+                g_descriptor_err_test_table[i].network)) {
+            printf("[%s] test failed!\n", g_descriptor_err_test_table[i].name);
             tests_ok = false;
         }
     }
 
-    for (index = 0; index < addr_err_max; ++index) {
+    for (i = 0; i < NUM_ELEMS(g_address_err_test_table); ++i) {
         if (!check_descriptor_address_error(
-                g_address_err_test_table[index].name,
-                g_address_err_test_table[index].descriptor,
-                g_address_err_test_table[index].network)) {
-            printf("[%s] test failed!\n", g_address_err_test_table[index].name);
+                g_address_err_test_table[i].name,
+                g_address_err_test_table[i].descriptor,
+                g_address_err_test_table[i].network)) {
+            printf("[%s] test failed!\n", g_address_err_test_table[i].name);
             tests_ok = false;
         }
     }
