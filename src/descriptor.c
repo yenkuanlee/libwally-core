@@ -380,21 +380,10 @@ static void free_miniscript_node(struct miniscript_node_t *node)
         }
     }
 
-    if (node->data && node->data_size) {
-        wally_bzero(node->data, node->data_size);
-        wally_free(node->data);
-    }
-    if (node->derive_path && node->derive_path_len) {
-        wally_bzero(node->derive_path, node->derive_path_len);
-        wally_free(node->derive_path);
-    }
-    if (node->key_origin_info && node->key_origin_info_len) {
-        wally_bzero(node->key_origin_info, node->key_origin_info_len);
-        wally_free(node->key_origin_info);
-    }
-
-    wally_bzero(node, sizeof(struct miniscript_node_t));
-    wally_free(node);
+    clear_and_free(node->data, node->data_size);
+    clear_and_free(node->derive_path, node->derive_path_len);
+    clear_and_free(node->key_origin_info, node->key_origin_info_len);
+    clear_and_free(node, sizeof(*node));
 }
 
 int check_type_properties(uint32_t property)
@@ -3311,8 +3300,7 @@ static int convert_script_from_node(
         *write_len = 0;
     }
 
-    wally_bzero(buf, DESCRIPTOR_LIMIT_LENGTH);
-    wally_free(buf);
+    clear_and_free(buf, DESCRIPTOR_LIMIT_LENGTH);
     return ret;
 }
 
@@ -3394,10 +3382,7 @@ static int parse_miniscript(
 
     if (ret != WALLY_OK && script_ignore_checksum)
         wally_free_string(*script_ignore_checksum);
-    if (work_script) {
-        wally_bzero(work_script, work_script_len);
-        wally_free(work_script);
-    }
+    clear_and_free(work_script, work_script_len);
     free_miniscript_node(top_node);
     return ret;
 }
@@ -3461,8 +3446,7 @@ static void free_descriptor_address_item(
         for (index = 0; index < item_len; ++index) {
             wally_free_string(item[index].address);
         }
-        wally_clear(item, item_len * sizeof(struct wally_descriptor_address_item));
-        wally_free(item);
+        clear_and_free(item, item_len * sizeof(*item));
     }
 }
 
@@ -3585,10 +3569,7 @@ int wally_descriptor_to_address(
                                                  script_item.script_len,
                                                  output);
 
-    if (script_item.script) {
-        wally_bzero((char *)script_item.script, script_item.script_len);
-        wally_free(script_item.script);
-    }
+    clear_and_free(script_item.script, script_item.script_len);
     return ret;
 }
 
@@ -3662,14 +3643,9 @@ int wally_descriptor_to_addresses(
     }
 
     if (script_items) {
-        for (index = 0; index < num_items; ++index) {
-            if (script_items[index].script) {
-                wally_bzero((char *)script_items[index].script, script_items[index].script_len);
-                wally_free(script_items[index].script);
-            }
-        }
-        wally_bzero((char *)script_items, sizeof(struct wally_descriptor_script_item) * num_items);
-        wally_free(script_items);
+        for (index = 0; index < num_items; ++index)
+            clear_and_free(script_items[index].script, script_items[index].script_len);
+        clear_and_free(script_items, num_items * sizeof(*script_items));
     }
     if (address_items)
         free_descriptor_address_item(address_items, num_items);
