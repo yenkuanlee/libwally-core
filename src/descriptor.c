@@ -147,9 +147,9 @@ typedef int (*wally_miniscript_wrapper_to_script_t)(
 
 /* Struct */
 struct wally_descriptor_script_item {
-    uint32_t child_num;
     unsigned char *script;
     size_t script_len;
+    uint32_t child_num;
 };
 
 struct miniscript_item_t {
@@ -3491,18 +3491,13 @@ int wally_descriptor_parse_miniscript(
     size_t *written)
 {
     int ret;
-    struct wally_descriptor_script_item script_item;
+    struct wally_descriptor_script_item script_item = { bytes_out, len, derive_child_num };
 
     if (written)
         *written = 0;
 
     if (!bytes_out || !written || !len)
         return WALLY_EINVAL;
-
-    wally_bzero(&script_item, sizeof(script_item));
-    script_item.child_num = derive_child_num;
-    script_item.script = bytes_out;
-    script_item.script_len = len;
 
     ret = parse_miniscript(
         miniscript,
@@ -3535,7 +3530,7 @@ int wally_descriptor_to_scriptpubkey(
 {
     int ret;
     const struct address_script_t *addr_item;
-    struct wally_descriptor_script_item script_item;
+    struct wally_descriptor_script_item script_item = { bytes_out, len, derive_child_num };
 
     if (written)
         *written = 0;
@@ -3544,11 +3539,6 @@ int wally_descriptor_to_scriptpubkey(
         return WALLY_EINVAL;
 
     addr_item = netaddr_from_network(network);
-
-    wally_bzero(&script_item, sizeof(script_item));
-    script_item.child_num = derive_child_num;
-    script_item.script = bytes_out;
-    script_item.script_len = len;
 
     ret = parse_miniscript(
         descriptor,
@@ -3577,13 +3567,10 @@ int wally_descriptor_to_address(
 {
     int ret;
     const struct address_script_t *addr_item;
-    struct wally_descriptor_script_item script_item;
+    struct wally_descriptor_script_item script_item = { NULL, 0, derive_child_num };
 
     if (!output || !(addr_item = netaddr_from_network(network)))
         return WALLY_EINVAL;
-
-    wally_bzero(&script_item, sizeof(script_item));
-    script_item.child_num = derive_child_num;
 
     ret = parse_miniscript(
         descriptor,
