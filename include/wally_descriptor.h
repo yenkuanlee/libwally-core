@@ -48,7 +48,7 @@ WALLY_CORE_API int wally_free_descriptor_addresses(
  *
  * :param miniscript: Miniscript string.
  * :param vars_in: Map of variable names to values.
- * :param derive_child_num: Number of the derive path.
+ * :param child_num: The BIP32 child number to derive.
  * :param flags: For analyze type.
  *|   see WALLY_MINISCRIPT_WITNESS_SCRIPT, WALLY_MINISCRIPT_TAPSCRIPT.
  * :param bytes_out: Destination for the resulting scriptPubkey.
@@ -58,7 +58,7 @@ WALLY_CORE_API int wally_free_descriptor_addresses(
 WALLY_CORE_API int wally_descriptor_parse_miniscript(
     const char *miniscript,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t flags,
     unsigned char *bytes_out,
     size_t len,
@@ -69,7 +69,7 @@ WALLY_CORE_API int wally_descriptor_parse_miniscript(
  *
  * :param descriptor: Output descriptor.
  * :param vars_in: Map of variable names to values.
- * :param derive_child_num: Number of the derive path.
+ * :param child_num: The BIP32 child number to derive.
  * :param network: Number of the network. (bitcoin regtest is set ``0xff``)
  * :param target_depth: Number of the descriptor depth. Default is 0.
  * :param target_index: Number of the descriptor index. Default is 0.
@@ -81,7 +81,7 @@ WALLY_CORE_API int wally_descriptor_parse_miniscript(
 WALLY_CORE_API int wally_descriptor_to_scriptpubkey(
     const char *descriptor,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t network,
     uint32_t target_depth,
     uint32_t target_index,
@@ -95,7 +95,7 @@ WALLY_CORE_API int wally_descriptor_to_scriptpubkey(
  *
  * :param descriptor: Output descriptor.
  * :param vars_in: Map of variable names to values.
- * :param derive_child_num: Number of the derive path.
+ * :param child_num: The BIP32 child number to derive.
  * :param network: Number of the network. (bitcoin regtest is set ``0xff``)
  * :param flags: For future use. Must be 0.
  * :param output: Destination for the resulting addresss.
@@ -104,7 +104,7 @@ WALLY_CORE_API int wally_descriptor_to_scriptpubkey(
 WALLY_CORE_API int wally_descriptor_to_address(
     const char *descriptor,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t network,
     uint32_t flags,
     char **output);

@@ -135,7 +135,7 @@ typedef int (*wally_verify_descriptor_t)(
 typedef int (*wally_descriptor_to_script_t)(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len);
@@ -314,7 +314,7 @@ static int analyze_miniscript_addr(
 static int generate_script_from_miniscript(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len);
@@ -1105,7 +1105,7 @@ static int verify_miniscript_wrapper_u(struct miniscript_node_t *node, struct mi
 static int generate_by_miniscript_pk_k(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1115,7 +1115,7 @@ static int generate_by_miniscript_pk_k(
     if (!node->child || (script_len < EC_PUBLIC_KEY_LEN * 2) || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num, &script[1], script_len - 1, write_len);
+    ret = generate_script_from_miniscript(node->child, node, child_num, &script[1], script_len - 1, write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1130,7 +1130,7 @@ static int generate_by_miniscript_pk_k(
 static int generate_by_miniscript_pk_h(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1144,7 +1144,7 @@ static int generate_by_miniscript_pk_h(
     if (node->child->is_xonly_key)
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num, pubkey, sizeof(pubkey), &child_write_len);
+    ret = generate_script_from_miniscript(node->child, node, child_num, pubkey, sizeof(pubkey), &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1163,7 +1163,7 @@ static int generate_by_miniscript_pk_h(
 static int generate_by_descriptor_sh(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1174,7 +1174,7 @@ static int generate_by_descriptor_sh(
     if (!node->child || (script_len < WALLY_SCRIPTPUBKEY_P2SH_LEN) || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num, script, script_len, &child_write_len);
+    ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1191,7 +1191,7 @@ static int generate_by_descriptor_sh(
 static int generate_by_descriptor_wsh(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1203,7 +1203,7 @@ static int generate_by_descriptor_wsh(
     if (!node->child || (script_len < sizeof(output)) || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num, script, script_len, &child_write_len);
+    ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1220,14 +1220,14 @@ static int generate_by_descriptor_wsh(
 static int generate_by_descriptor_pk(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
     int ret;
 
-    ret = generate_by_miniscript_pk_k(node, parent, derive_child_num, script, script_len, write_len);
+    ret = generate_by_miniscript_pk_k(node, parent, child_num, script, script_len, write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1237,7 +1237,7 @@ static int generate_by_descriptor_pk(
 static int generate_by_descriptor_pkh(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1247,7 +1247,7 @@ static int generate_by_descriptor_pkh(
     if (script_len < WALLY_SCRIPTPUBKEY_P2PKH_LEN)
         return WALLY_EINVAL;
 
-    ret = generate_by_miniscript_pk_h(node, parent, derive_child_num, script, script_len, write_len);
+    ret = generate_by_miniscript_pk_h(node, parent, child_num, script, script_len, write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1257,7 +1257,7 @@ static int generate_by_descriptor_pkh(
 static int generate_by_descriptor_wpkh(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1269,7 +1269,7 @@ static int generate_by_descriptor_wpkh(
     if (!node->child || (script_len < sizeof(output)) || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num, script, script_len, &child_write_len);
+    ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1286,18 +1286,14 @@ static int generate_by_descriptor_wpkh(
 static int generate_by_descriptor_combo(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    if (has_uncompressed_key_by_child(node)) {
-        return generate_by_descriptor_pkh(
-            node, parent, derive_child_num, script, script_len, write_len);
-    } else {
-        return generate_by_descriptor_wpkh(
-            node, parent, derive_child_num, script, script_len, write_len);
-    }
+    if (has_uncompressed_key_by_child(node))
+        return generate_by_descriptor_pkh(node, parent, child_num, script, script_len, write_len);
+    return generate_by_descriptor_wpkh(node, parent, child_num, script, script_len, write_len);
 }
 
 static int compare_multisig_node(const void *source, const void *destination)
@@ -1321,7 +1317,7 @@ static int compare_multisig_node(const void *source, const void *destination)
 static int generate_by_descriptor_multisig(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     int flag,
     unsigned char *script,
     size_t script_len,
@@ -1340,7 +1336,7 @@ static int generate_by_descriptor_multisig(
     if (!child || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(child, node, derive_child_num, script, script_len, &offset);
+    ret = generate_script_from_miniscript(child, node, child_num, script, script_len, &offset);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1364,7 +1360,7 @@ static int generate_by_descriptor_multisig(
         for (index = 0; index < count; ++index) {
             child_write_len = 0;
             ret = generate_script_from_miniscript(
-                sorted_node_array[index].node, node, derive_child_num,
+                sorted_node_array[index].node, node, child_num,
                 sorted_node_array[index].script,
                 sizeof(sorted_node_array[index].script),
                 &child_write_len);
@@ -1412,24 +1408,24 @@ static int generate_by_descriptor_multisig(
 static int generate_by_descriptor_multi(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
     return generate_by_descriptor_multisig(
-        node, parent, derive_child_num, 0, script, script_len, write_len);
+        node, parent, child_num, 0, script, script_len, write_len);
 }
 
 static int generate_by_descriptor_sorted_multi(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    return generate_by_descriptor_multisig(node, parent, derive_child_num,
+    return generate_by_descriptor_multisig(node, parent, child_num,
                                            WALLY_SCRIPT_MULTISIG_SORTED,
                                            script, script_len, write_len);
 }
@@ -1438,7 +1434,7 @@ static int generate_by_descriptor_sorted_multi(
 static int generate_by_descriptor_addr(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1448,7 +1444,7 @@ static int generate_by_descriptor_addr(
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
-        node->child, node, derive_child_num, script, script_len, write_len);
+        node->child, node, child_num, script, script_len, write_len);
     if (*write_len > DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE)
         return WALLY_EINVAL;
 
@@ -1458,7 +1454,7 @@ static int generate_by_descriptor_addr(
 static int generate_by_descriptor_raw(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1468,7 +1464,7 @@ static int generate_by_descriptor_raw(
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
-        node->child, node, derive_child_num, script, script_len, write_len);
+        node->child, node, child_num, script, script_len, write_len);
     if (*write_len > DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE)
         return WALLY_EINVAL;
 
@@ -1478,7 +1474,7 @@ static int generate_by_descriptor_raw(
 static int generate_by_miniscript_older(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1489,7 +1485,7 @@ static int generate_by_miniscript_older(
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
-        node->child, node, derive_child_num, script, script_len, &child_write_len);
+        node->child, node, child_num, script, script_len, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1504,7 +1500,7 @@ static int generate_by_miniscript_older(
 static int generate_by_miniscript_after(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1515,7 +1511,7 @@ static int generate_by_miniscript_after(
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
-        node->child, node, derive_child_num, script, script_len, &child_write_len);
+        node->child, node, child_num, script, script_len, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
 
@@ -1530,7 +1526,7 @@ static int generate_by_miniscript_after(
 static int generate_by_miniscript_crypto(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char crypto_op_code,
     unsigned char crypto_size,
     unsigned char *script,
@@ -1545,7 +1541,7 @@ static int generate_by_miniscript_crypto(
     if (!node->child || (script_len < (size_t)(crypto_size + 8)) || (parent && !parent->info))
         return WALLY_EINVAL;
 
-    ret = generate_script_from_miniscript(node->child, node, derive_child_num,
+    ret = generate_script_from_miniscript(node->child, node, child_num,
                                           &script[6], script_len - 8, &child_write_len);
     if (ret != WALLY_OK)
         return ret;
@@ -1567,55 +1563,55 @@ static int generate_by_miniscript_crypto(
 static int generate_by_miniscript_sha256(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    return generate_by_miniscript_crypto(node, parent, derive_child_num, OP_SHA256, SHA256_LEN,
+    return generate_by_miniscript_crypto(node, parent, child_num, OP_SHA256, SHA256_LEN,
                                          script, script_len, write_len);
 }
 
 static int generate_by_miniscript_hash256(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    return generate_by_miniscript_crypto(node, parent, derive_child_num, OP_HASH256, SHA256_LEN,
+    return generate_by_miniscript_crypto(node, parent, child_num, OP_HASH256, SHA256_LEN,
                                          script, script_len, write_len);
 }
 
 static int generate_by_miniscript_ripemd160(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    return generate_by_miniscript_crypto(node, parent, derive_child_num, OP_RIPEMD160,
+    return generate_by_miniscript_crypto(node, parent, child_num, OP_RIPEMD160,
                                          HASH160_LEN, script, script_len, write_len);
 }
 
 static int generate_by_miniscript_hash160(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
 {
-    return generate_by_miniscript_crypto(node, parent, derive_child_num, OP_HASH160, HASH160_LEN,
+    return generate_by_miniscript_crypto(node, parent, child_num, OP_HASH160, HASH160_LEN,
                                          script, script_len, write_len);
 }
 
 static int generate_by_miniscript_concat(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     size_t target_num,
     const size_t *reference_indexes,
     unsigned char *prev_insert,
@@ -1670,7 +1666,7 @@ static int generate_by_miniscript_concat(
         }
 
         output_len = 0;
-        ret = generate_script_from_miniscript(child[indexes[index]], node, derive_child_num,
+        ret = generate_script_from_miniscript(child[indexes[index]], node, child_num,
                                               &script[offset], script_len - offset - 1,
                                               &output_len);
         if (ret != WALLY_OK)
@@ -1698,7 +1694,7 @@ static int generate_by_miniscript_concat(
 static int generate_by_miniscript_andor(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1711,7 +1707,7 @@ static int generate_by_miniscript_andor(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         3,
         indexes,
         NULL,
@@ -1730,7 +1726,7 @@ static int generate_by_miniscript_andor(
 static int generate_by_miniscript_and_v(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1740,7 +1736,7 @@ static int generate_by_miniscript_and_v(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1759,7 +1755,7 @@ static int generate_by_miniscript_and_v(
 static int generate_by_miniscript_and_b(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1770,7 +1766,7 @@ static int generate_by_miniscript_and_b(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1789,7 +1785,7 @@ static int generate_by_miniscript_and_b(
 static int generate_by_miniscript_and_n(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1801,7 +1797,7 @@ static int generate_by_miniscript_and_n(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1820,7 +1816,7 @@ static int generate_by_miniscript_and_n(
 static int generate_by_miniscript_or_b(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1831,7 +1827,7 @@ static int generate_by_miniscript_or_b(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1850,7 +1846,7 @@ static int generate_by_miniscript_or_b(
 static int generate_by_miniscript_or_c(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1862,7 +1858,7 @@ static int generate_by_miniscript_or_c(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1881,7 +1877,7 @@ static int generate_by_miniscript_or_c(
 static int generate_by_miniscript_or_d(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1893,7 +1889,7 @@ static int generate_by_miniscript_or_d(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         NULL,
@@ -1912,7 +1908,7 @@ static int generate_by_miniscript_or_d(
 static int generate_by_miniscript_or_i(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1925,7 +1921,7 @@ static int generate_by_miniscript_or_i(
     return generate_by_miniscript_concat(
         node,
         parent,
-        derive_child_num,
+        child_num,
         2,
         indexes,
         top_op,
@@ -1944,7 +1940,7 @@ static int generate_by_miniscript_or_i(
 static int generate_by_miniscript_thresh(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    int32_t derive_child_num,
+    int32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -1965,7 +1961,7 @@ static int generate_by_miniscript_thresh(
         output_len = 0;
         ret = generate_script_from_miniscript(child,
                                               node,
-                                              derive_child_num,
+                                              child_num,
                                               &script[offset],
                                               script_len - offset - 1,
                                               &output_len);
@@ -1990,7 +1986,7 @@ static int generate_by_miniscript_thresh(
 
     ret = generate_script_from_miniscript(node->child,
                                           node,
-                                          derive_child_num,
+                                          child_num,
                                           &script[offset],
                                           script_len - offset - 1,
                                           &output_len);
@@ -2483,7 +2479,7 @@ static int generate_script_from_number(
 static int generate_script_from_miniscript(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     unsigned char *script,
     size_t script_len,
     size_t *write_len)
@@ -2498,7 +2494,7 @@ static int generate_script_from_miniscript(
 
     if (node->info) {
         output_len = *write_len;
-        ret = node->info->generate_function(node, parent, derive_child_num, script,
+        ret = node->info->generate_function(node, parent, child_num, script,
                                             script_len, &output_len);
         if (ret != WALLY_OK)
             return ret;
@@ -2626,7 +2622,7 @@ static int generate_script_from_miniscript(
                 return ret;
 
             if (astarisk_index >= 0)
-                bip32_array[astarisk_index] |= derive_child_num;
+                bip32_array[astarisk_index] |= child_num;
 
             ret = bip32_key_from_parent_path(&extkey, bip32_array, count,
                                              BIP32_FLAG_KEY_PUBLIC, &derive_extkey);
@@ -3272,7 +3268,7 @@ static int analyze_miniscript(
 
 static int convert_script_from_node(
     struct miniscript_node_t *top_node,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t depth,
     uint32_t index,
     unsigned char *script,
@@ -3301,7 +3297,7 @@ static int convert_script_from_node(
 
     ret = generate_script_from_miniscript(target_node,
                                           NULL,
-                                          derive_child_num,
+                                          child_num,
                                           (unsigned char *)buf,
                                           DESCRIPTOR_LIMIT_LENGTH,
                                           &output_len);
@@ -3484,14 +3480,14 @@ int wally_free_descriptor_addresses(
 int wally_descriptor_parse_miniscript(
     const char *miniscript,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t flags,
     unsigned char *bytes_out,
     size_t len,
     size_t *written)
 {
     int ret;
-    struct wally_descriptor_script_item script_item = { bytes_out, len, derive_child_num };
+    struct wally_descriptor_script_item script_item = { bytes_out, len, child_num };
 
     if (written)
         *written = 0;
@@ -3519,7 +3515,7 @@ int wally_descriptor_parse_miniscript(
 int wally_descriptor_to_scriptpubkey(
     const char *descriptor,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t network,
     uint32_t target_depth,
     uint32_t target_index,
@@ -3530,7 +3526,7 @@ int wally_descriptor_to_scriptpubkey(
 {
     int ret;
     const struct address_script_t *addr_item;
-    struct wally_descriptor_script_item script_item = { bytes_out, len, derive_child_num };
+    struct wally_descriptor_script_item script_item = { bytes_out, len, child_num };
 
     if (written)
         *written = 0;
@@ -3560,14 +3556,14 @@ int wally_descriptor_to_scriptpubkey(
 int wally_descriptor_to_address(
     const char *descriptor,
     const struct wally_map *vars_in,
-    uint32_t derive_child_num,
+    uint32_t child_num,
     uint32_t network,
     uint32_t flags,
     char **output)
 {
     int ret;
     const struct address_script_t *addr_item;
-    struct wally_descriptor_script_item script_item = { NULL, 0, derive_child_num };
+    struct wally_descriptor_script_item script_item = { NULL, 0, child_num };
 
     if (!output || !(addr_item = netaddr_from_network(network)))
         return WALLY_EINVAL;
