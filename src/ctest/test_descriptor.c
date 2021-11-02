@@ -1,8 +1,5 @@
 #include "config.h"
 
-#include <wally_core.h>
-#include <wally_address.h>
-#include <wally_crypto.h>
 #include <wally_descriptor.h>
 #include <wally_psbt.h>
 #include <stdio.h>
@@ -25,65 +22,6 @@
    }
  */
 
-struct wally_miniscript_ref_test {
-    const char *miniscript;
-    const char *scriptpubkey;
-};
-
-struct wally_miniscript_test {
-    const char *name;
-    const char *descriptor;
-    const char *scriptpubkey;
-    const char *miniscript;
-    const char *p2wsh_scriptpubkey;
-};
-
-struct wally_miniscript_taproot_test {
-    const char *miniscript;
-    const char *scriptpubkey;
-    uint32_t flags;
-};
-
-struct wally_descriptor_test {
-    const char *name;
-    const char *descriptor;
-    const char *scriptpubkey;
-    const uint32_t *bip32_index;
-    const char *checksum;
-};
-
-struct wally_descriptor_depth_test {
-    const char *name;
-    const char *descriptor;
-    const uint32_t depth;
-    const uint32_t index;
-    const char *scriptpubkey;
-};
-
-struct wally_descriptor_address_test {
-    const char *name;
-    const char *descriptor;
-    const uint32_t bip32_index;
-    const uint32_t network;
-    const char *address;
-};
-
-struct wally_descriptor_address_list_test {
-    const char *name;
-    const char *descriptor;
-    const uint32_t start_index;
-    const uint32_t end_index;
-    const uint32_t network;
-    const size_t address_list_num;
-    const char *address_list[30];
-};
-
-struct wally_descriptor_err_test {
-    const char *name;
-    const char *descriptor;
-    const uint32_t network;
-};
-
 #define B(str) (unsigned char *)(str), sizeof(str)
 #define NUM_ELEMS(a) (sizeof(a) / sizeof(a[0]))
 
@@ -101,7 +39,7 @@ static struct wally_map_item g_key_map_items[] = {
     { B("H"), B("d0721279e70d39fb4aa409b52839a0056454e3b5") } /* HASH160(key_local) */
 };
 
-static struct wally_map g_key_map = {
+static const struct wally_map g_key_map = {
     g_key_map_items,
     NUM_ELEMS(g_key_map_items),
     NUM_ELEMS(g_key_map_items)
@@ -110,7 +48,10 @@ static struct wally_map g_key_map = {
 static const uint32_t g_miniscript_index_0 = 0;
 static const uint32_t g_miniscript_index_16 = 0x10;
 
-struct wally_miniscript_ref_test g_miniscript_ref_test_table[] = {
+static const struct miniscript_ref_test {
+    const char *miniscript;
+    const char *scriptpubkey;
+} g_miniscript_ref_cases[] = {
     /* Randomly generated test set that covers the majority of type and node type combinations */
     {"lltvln:after(1231488000)", "6300676300676300670400046749b1926869516868"},
     {"uuj:and_v(v:multi(2,03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a,025601570cb47f238d2b0286db4a990fa0f3ba28d1a319f5e7cf55c2a2444da7cc),after(1231488000))", "6363829263522103d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a21025601570cb47f238d2b0286db4a990fa0f3ba28d1a319f5e7cf55c2a2444da7cc52af0400046749b168670068670068"},
@@ -143,7 +84,13 @@ struct wally_miniscript_ref_test g_miniscript_ref_test_table[] = {
     {"c:or_i(andor(c:pk_h(03d30199d74fb5a22d47b6e054e2f378cedacffcb89904a61d75d0dbd407143e65),pk_h(022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01),pk_h(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)),pk_k(02d7924d4f7d43ea965a465ae3095ff41131e5946f3c85f79e44adbcf8e27e080e))", "6376a914fcd35ddacad9f2d5be5e464639441c6065e6955d88ac6476a91406afd46bcdfd22ef94ac122aa11f241244a37ecc886776a9149652d86bedf43ad264362e6e6eba6eb7645081278868672102d7924d4f7d43ea965a465ae3095ff41131e5946f3c85f79e44adbcf8e27e080e68ac"},
 };
 
-struct wally_miniscript_test g_miniscript_test_table[] = {
+static const struct miniscript_test {
+    const char *name;
+    const char *descriptor;
+    const char *scriptpubkey;
+    const char *miniscript;
+    const char *p2wsh_scriptpubkey;
+} g_miniscript_cases[] = {
     {
         "miniscript - A single key",
         "c:pk_k(038bc7431d9285a064b0328b6333f3a20b86664437b6de8f4e26e6bbdee258f048)",
@@ -251,7 +198,11 @@ struct wally_miniscript_test g_miniscript_test_table[] = {
     },
 };
 
-struct wally_miniscript_taproot_test g_miniscript_taproot_test_table[] = {
+static const struct miniscript_taproot_test {
+    const char *miniscript;
+    const char *scriptpubkey;
+    uint32_t flags;
+} g_miniscript_taproot_cases[] = {
     {
         "c:pk_k(daed4f2be3a8bf278e70132fb0beb7522f570e144bf615c07e996d443dee8729)",
         "20daed4f2be3a8bf278e70132fb0beb7522f570e144bf615c07e996d443dee8729ac",
@@ -269,7 +220,13 @@ struct wally_miniscript_taproot_test g_miniscript_taproot_test_table[] = {
     },
 };
 
-struct wally_descriptor_test g_descriptor_test_table[] = {
+static const struct descriptor_test {
+    const char *name;
+    const char *descriptor;
+    const char *scriptpubkey;
+    const uint32_t *bip32_index;
+    const char *checksum;
+} g_descriptor_cases[] = {
     {
         "descriptor - p2pk",
         "pk(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)#gn28ywm7",
@@ -459,7 +416,13 @@ struct wally_descriptor_test g_descriptor_test_table[] = {
     },
 };
 
-struct wally_descriptor_depth_test g_descriptor_depth_test_table[] = {
+static const struct descriptor_depth_test {
+    const char *name;
+    const char *descriptor;
+    const uint32_t depth;
+    const uint32_t index;
+    const char *scriptpubkey;
+} g_descriptor_depth_cases[] = {
     {
         "descriptor depth - p2sh-p2wsh-multi (p2sh-p2wsh)",
         "sh(wsh(multi(1,03f28773c2d975288bc7d1d205c3748651b075fbc6610e58cddeeddf8f19405aa8,03499fdf9e895e719cfd64e67f07d38e3226aa7b63678949e6e49b241a60e823e4,02d7924d4f7d43ea965a465ae3095ff41131e5946f3c85f79e44adbcf8e27e080e)))",
@@ -511,7 +474,13 @@ struct wally_descriptor_depth_test g_descriptor_depth_test_table[] = {
     },
 };
 
-struct wally_descriptor_address_test g_descriptor_address_test_table[] = {
+static const struct descriptor_address_test {
+    const char *name;
+    const char *descriptor;
+    const uint32_t bip32_index;
+    const uint32_t network;
+    const char *address;
+} g_descriptor_address_cases[] = {
     {
         "address - p2pkh - mainnet",
         "pkh(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)",
@@ -695,7 +664,15 @@ struct wally_descriptor_address_test g_descriptor_address_test_table[] = {
     },
 };
 
-struct wally_descriptor_address_list_test g_descriptor_addresses_test_table[] = {
+static struct descriptor_address_list_test {
+    const char *name;
+    const char *descriptor;
+    const uint32_t start_index;
+    const uint32_t end_index;
+    const uint32_t network;
+    const size_t address_list_num;
+    const char *address_list[30];
+} g_descriptor_addresses_cases[] = {
     {
         "address list - p2wsh multisig (0-29)",
         "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))#t2zpj2eu",
@@ -778,7 +755,11 @@ struct wally_descriptor_address_list_test g_descriptor_addresses_test_table[] = 
     },
 };
 
-struct wally_descriptor_err_test g_descriptor_err_test_table[] = {
+static const struct descriptor_err_test {
+    const char *name;
+    const char *descriptor;
+    const uint32_t network;
+} g_descriptor_err_cases[] = {
     {
         "descriptor errchk - invalid checksum",
         "wpkh(02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9)#8rap84p2",
@@ -854,7 +835,7 @@ struct wally_descriptor_err_test g_descriptor_err_test_table[] = {
     },
 };
 
-struct wally_descriptor_err_test g_address_err_test_table[] = {
+struct descriptor_err_test g_address_err_cases[] = {
     {
         "address errchk - invalid network",
         "wpkh(02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9)",
@@ -886,18 +867,11 @@ static bool check_parse_miniscript(const char *function, const char *descriptor,
     size_t written = 0;
     unsigned char script[520];
     char *hex = NULL;
-    int ret;
     bool is_success = false;
     uint32_t index = 0;
 
-    ret = wally_descriptor_parse_miniscript(
-        descriptor,
-        map_in,
-        index,
-        flags,
-        script,
-        sizeof(script),
-        &written);
+    int ret = wally_descriptor_parse_miniscript(descriptor, map_in, index, flags,
+                                                script, sizeof(script), &written);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_parse_miniscript NG[%d]\n", ret);
         return false;
@@ -909,11 +883,10 @@ static bool check_parse_miniscript(const char *function, const char *descriptor,
         return false;
     }
 
-    if (strncmp(hex, expected, strlen(hex) + 1) == 0) {
+    if (strncmp(hex, expected, strlen(hex) + 1) == 0)
         is_success = true;
-    } else
-        printf("%s:\n  Input: %s\n  Output: %s\n  Expect: %s\n",
-               function, descriptor, hex, expected);
+    else
+        printf("%s:\n  Input: %s\n  Output: %s\n  Expect: %s\n", function, descriptor, hex, expected);
 
     wally_free_string(hex);
     return is_success;
@@ -934,23 +907,12 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
     uint32_t network = 0;
     uint32_t desc_depth = 0;
     uint32_t desc_index = 0;
-    uint32_t flag = 0;
-    uint32_t index = 0;
-    if (bip32_index) {
-        index = *bip32_index;
-    }
+    uint32_t flags = 0;
+    uint32_t index = bip32_index ? *bip32_index : 0;
 
-    ret = wally_descriptor_to_scriptpubkey(
-        descriptor,
-        &g_key_map,
-        index,
-        network,
-        desc_depth,
-        desc_index,
-        flag,
-        script,
-        sizeof(script),
-        &written);
+    ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, index, network,
+                                           desc_depth, desc_index, flags,
+                                           script, sizeof(script), &written);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_to_scriptpubkey NG[%d]\n", ret);
         return false;
@@ -962,14 +924,9 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
         return false;
     }
 
-    ret = wally_descriptor_create_checksum(
-        descriptor,
-        &g_key_map,
-        flag,
-        &checksum);
+    ret = wally_descriptor_create_checksum(descriptor, &g_key_map, flags, &checksum);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_create_checksum NG[%d]\n", ret);
-        wally_free_string(hex);
         return false;
     }
 
@@ -994,22 +951,13 @@ static bool check_descriptor_to_scriptpubkey_depth(const char *function,
     size_t written = 0;
     unsigned char script[520];
     char *hex = NULL;
-    int ret;
     bool is_success = false;
     uint32_t network = 0;
-    uint32_t flag = 0;
+    uint32_t flags = 0;
 
-    ret = wally_descriptor_to_scriptpubkey(
-        descriptor,
-        &g_key_map,
-        0,
-        network,
-        depth,
-        index,
-        flag,
-        script,
-        sizeof(script),
-        &written);
+    int ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, 0, network,
+                                               depth, index, flags,
+                                               script, sizeof(script), &written);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_to_scriptpubkey NG[%d]\n", ret);
         return false;
@@ -1037,17 +985,11 @@ static bool check_descriptor_to_address(const char *function,
                                         const char *expected_address)
 {
     char *address = NULL;
-    int ret;
-    uint32_t flag = 0;
+    uint32_t flags = 0;
     bool is_success = false;
 
-    ret = wally_descriptor_to_address(
-        descriptor,
-        &g_key_map,
-        bip32_index,
-        network,
-        flag,
-        &address);
+    int ret = wally_descriptor_to_address(descriptor, &g_key_map, bip32_index,
+                                          network, flags, &address);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_to_address NG[%d]\n", ret);
         return false;
@@ -1071,19 +1013,12 @@ static bool check_descriptor_to_addresses(const char *function,
                                           size_t address_list_len)
 {
     struct wally_descriptor_addresses addresses = {NULL, 0};
-    int ret;
-    uint32_t flag = 0;
-    size_t i = 0;
+    uint32_t flags = 0;
+    size_t i;
     bool is_success = true;
 
-    ret = wally_descriptor_to_addresses(
-        descriptor,
-        &g_key_map,
-        start_index,
-        end_index,
-        network,
-        flag,
-        &addresses);
+    int ret = wally_descriptor_to_addresses(descriptor, &g_key_map, start_index, end_index,
+                                            network, flags, &addresses);
     if (ret != WALLY_OK) {
         printf("wally_descriptor_to_addresses NG[%d]\n", ret);
         return false;
@@ -1116,32 +1051,19 @@ static bool check_descriptor_scriptpubkey_error(const char *function,
                                                 const char *descriptor,
                                                 const uint32_t network)
 {
-    int ret;
     size_t written = 0;
     unsigned char script[520];
-    uint32_t flag = 0;
+    uint32_t flags = 0;
     uint32_t desc_depth = 0;
     uint32_t desc_index = 0;
 
-    ret = wally_descriptor_to_scriptpubkey(
-        descriptor,
-        &g_key_map,
-        0,
-        network,
-        desc_depth,
-        desc_index,
-        flag,
-        script,
-        sizeof(script),
-        &written);
-    if (ret == WALLY_EINVAL) {
+    int ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, 0, network,
+                                               desc_depth, desc_index, flags,
+                                               script, sizeof(script), &written);
+    if (ret == WALLY_EINVAL)
         return true;
-    } else if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_scriptpubkey NG[%d]\n", ret);
-        return false;
-    }
-    printf("wally_descriptor_to_scriptpubkey Fail[Not Error] name[%s]\n", function);
 
+    printf("wally_descriptor_to_scriptpubkey Fail[%d] name[%s]\n", ret, function);
     return false;
 }
 
@@ -1150,24 +1072,13 @@ static bool check_descriptor_address_error(const char *function,
                                            const uint32_t network)
 {
     char *address = NULL;
-    int ret;
-    uint32_t flag = 0;
+    uint32_t flags = 0;
+    int ret = wally_descriptor_to_address(descriptor, &g_key_map, 0, network, flags, &address);
 
-    ret = wally_descriptor_to_address(
-        descriptor,
-        &g_key_map,
-        0,
-        network,
-        flag,
-        &address);
-    if (ret == WALLY_EINVAL) {
+    if (ret == WALLY_EINVAL)
         return true;
-    } else if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_address NG[%d]\n", ret);
-        return false;
-    }
-    printf("wally_descriptor_to_address Fail[Not Error] name[%s]\n", function);
 
+    printf("wally_descriptor_to_address Fail[%d] name[%s]\n", ret, function);
     wally_free_string(address);
     return false;
 }
@@ -1177,103 +1088,102 @@ int main(void)
     bool tests_ok = true;
     size_t i;
 
-    for (i = 0; i < NUM_ELEMS(g_miniscript_ref_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_ref_cases); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_ref_test_table[i].miniscript,
-                g_miniscript_ref_test_table[i].miniscript,
-                g_miniscript_ref_test_table[i].scriptpubkey, NULL, 0)) {
-            printf("[%s] test failed!\n", g_miniscript_ref_test_table[i].miniscript);
+                g_miniscript_ref_cases[i].miniscript,
+                g_miniscript_ref_cases[i].miniscript,
+                g_miniscript_ref_cases[i].scriptpubkey, NULL, 0)) {
+            printf("[%s] test failed!\n", g_miniscript_ref_cases[i].miniscript);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_miniscript_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_cases); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_test_table[i].name,
-                g_miniscript_test_table[i].descriptor,
-                g_miniscript_test_table[i].scriptpubkey, NULL, 0)) {
-            printf("[%s] test failed!\n", g_miniscript_test_table[i].name);
+                g_miniscript_cases[i].name,
+                g_miniscript_cases[i].descriptor,
+                g_miniscript_cases[i].scriptpubkey, NULL, 0)) {
+            printf("[%s] test failed!\n", g_miniscript_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_miniscript_taproot_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_miniscript_taproot_cases); ++i) {
         if (!check_parse_miniscript(
-                g_miniscript_taproot_test_table[i].miniscript,
-                g_miniscript_taproot_test_table[i].miniscript,
-                g_miniscript_taproot_test_table[i].scriptpubkey,
-                NULL, g_miniscript_taproot_test_table[i].flags)) {
-            printf("[%s] test failed!\n", g_miniscript_taproot_test_table[i].miniscript);
+                g_miniscript_taproot_cases[i].miniscript,
+                g_miniscript_taproot_cases[i].miniscript,
+                g_miniscript_taproot_cases[i].scriptpubkey,
+                NULL, g_miniscript_taproot_cases[i].flags)) {
+            printf("[%s] test failed!\n", g_miniscript_taproot_cases[i].miniscript);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_descriptor_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_cases); ++i) {
         if (!check_descriptor_to_scriptpubkey(
-                g_descriptor_test_table[i].name,
-                g_descriptor_test_table[i].descriptor,
-                g_descriptor_test_table[i].scriptpubkey,
-                g_descriptor_test_table[i].bip32_index,
-                g_descriptor_test_table[i].checksum)) {
-            printf("[%s] test failed!\n", g_descriptor_test_table[i].name);
+                g_descriptor_cases[i].name,
+                g_descriptor_cases[i].descriptor,
+                g_descriptor_cases[i].scriptpubkey,
+                g_descriptor_cases[i].bip32_index,
+                g_descriptor_cases[i].checksum)) {
+            printf("[%s] test failed!\n", g_descriptor_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_descriptor_depth_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_depth_cases); ++i) {
         if (!check_descriptor_to_scriptpubkey_depth(
-                g_descriptor_depth_test_table[i].name,
-                g_descriptor_depth_test_table[i].descriptor,
-                g_descriptor_depth_test_table[i].depth,
-                g_descriptor_depth_test_table[i].index,
-                g_descriptor_depth_test_table[i].scriptpubkey)) {
-            printf("[%s] keylist test failed!\n", g_descriptor_depth_test_table[i].name);
+                g_descriptor_depth_cases[i].name,
+                g_descriptor_depth_cases[i].descriptor,
+                g_descriptor_depth_cases[i].depth,
+                g_descriptor_depth_cases[i].index,
+                g_descriptor_depth_cases[i].scriptpubkey)) {
+            printf("[%s] keylist test failed!\n", g_descriptor_depth_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_descriptor_address_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_address_cases); ++i) {
         if (!check_descriptor_to_address(
-                g_descriptor_address_test_table[i].name,
-                g_descriptor_address_test_table[i].descriptor,
-                g_descriptor_address_test_table[i].bip32_index,
-                g_descriptor_address_test_table[i].network,
-                g_descriptor_address_test_table[i].address)) {
-            printf("[%s] test failed!\n", g_descriptor_address_test_table[i].name);
+                g_descriptor_address_cases[i].name,
+                g_descriptor_address_cases[i].descriptor,
+                g_descriptor_address_cases[i].bip32_index,
+                g_descriptor_address_cases[i].network,
+                g_descriptor_address_cases[i].address)) {
+            printf("[%s] test failed!\n", g_descriptor_address_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_descriptor_addresses_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_addresses_cases); ++i) {
         if (!check_descriptor_to_addresses(
-                g_descriptor_addresses_test_table[i].name,
-                g_descriptor_addresses_test_table[i].descriptor,
-                g_descriptor_addresses_test_table[i].start_index,
-                g_descriptor_addresses_test_table[i].end_index,
-                g_descriptor_addresses_test_table[i].network,
-                g_descriptor_addresses_test_table[i].address_list,
-                g_descriptor_addresses_test_table[i].address_list_num)) {
-            printf("[%s] test failed!\n", g_descriptor_addresses_test_table[i].name);
+                g_descriptor_addresses_cases[i].name,
+                g_descriptor_addresses_cases[i].descriptor,
+                g_descriptor_addresses_cases[i].start_index,
+                g_descriptor_addresses_cases[i].end_index,
+                g_descriptor_addresses_cases[i].network,
+                g_descriptor_addresses_cases[i].address_list,
+                g_descriptor_addresses_cases[i].address_list_num)) {
+            printf("[%s] test failed!\n", g_descriptor_addresses_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_descriptor_err_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_descriptor_err_cases); ++i) {
         if (!check_descriptor_scriptpubkey_error(
-                g_descriptor_err_test_table[i].name,
-                g_descriptor_err_test_table[i].descriptor,
-                g_descriptor_err_test_table[i].network)) {
-            printf("[%s] test failed!\n", g_descriptor_err_test_table[i].name);
+                g_descriptor_err_cases[i].name,
+                g_descriptor_err_cases[i].descriptor,
+                g_descriptor_err_cases[i].network)) {
+            printf("[%s] test failed!\n", g_descriptor_err_cases[i].name);
             tests_ok = false;
         }
     }
 
-    for (i = 0; i < NUM_ELEMS(g_address_err_test_table); ++i) {
+    for (i = 0; i < NUM_ELEMS(g_address_err_cases); ++i) {
         if (!check_descriptor_address_error(
-                g_address_err_test_table[i].name,
-                g_address_err_test_table[i].descriptor,
-                g_address_err_test_table[i].network)) {
-            printf("[%s] test failed!\n", g_address_err_test_table[i].name);
+                g_address_err_cases[i].name,
+                g_address_err_cases[i].descriptor,
+                g_address_err_cases[i].network)) {
             tests_ok = false;
         }
     }
