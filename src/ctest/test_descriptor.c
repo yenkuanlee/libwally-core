@@ -971,21 +971,21 @@ static bool check_descriptor_to_addresses(const char *function,
                                           const char **expected_address_list,
                                           size_t address_list_len)
 {
-    struct wally_descriptor_addresses addresses = { NULL, 0 };
+    struct wally_descriptor_addresses *addresses = NULL;
     uint32_t flags = 0;
     size_t i;
 
     int ret = wally_descriptor_to_addresses(descriptor, &g_key_map, start_index, end_index,
                                             network, flags, &addresses);
-    if (!check_ret(function, ret, WALLY_OK) || addresses.num_items != address_list_len) {
-        printf("%s: expected address length: %d, got %d\n", function, (int)address_list_len, (int)addresses.num_items);
+    if (!check_ret(function, ret, WALLY_OK) || addresses->num_items != address_list_len) {
+        printf("%s: expected address length: %d, got %d\n", function, (int)address_list_len, (int)addresses->num_items);
         return false;
     }
 
     for (i = 0; i < address_list_len; ++i) {
         const char *expected_address = expected_address_list[i];
-        const char *addr = addresses.items[i].address;
-        uint32_t child_num = addresses.items[i].child_num;
+        const char *addr = addresses->items[i].address;
+        uint32_t child_num = addresses->items[i].child_num;
         uint32_t exp_child_num = start_index + i;
         if (strncmp(expected_address, addr, strlen(expected_address) + 1) != 0) {
             printf("%s: expected address: %s, got%s\n", function, expected_address_list[i], addr);
@@ -997,7 +997,7 @@ static bool check_descriptor_to_addresses(const char *function,
         }
     }
 
-    wally_descriptor_addresses_free(&addresses);
+    wally_descriptor_addresses_free(addresses);
     return true;
 }
 

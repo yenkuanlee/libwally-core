@@ -118,8 +118,8 @@ WALLY_CORE_API int wally_descriptor_to_address(
  * :param end_child_num: Number of the derive end path.
  * :param network: Number of the network. (bitcoin regtest is set ``0xff``)
  * :param flags: For future use. Must be 0.
- * :param addresses: Destination for the resulting addresses.
- *|    The string returned should be freed using `wally_descriptor_addresses_free`.
+ * :param output: Destination for the resulting addresses.
+ *|    The addresses returned should be freed using `wally_descriptor_addresses_free`.
  */
 WALLY_CORE_API int wally_descriptor_to_addresses(
     const char *descriptor,
@@ -128,7 +128,7 @@ WALLY_CORE_API int wally_descriptor_to_addresses(
     uint32_t end_child_num,
     uint32_t network,
     uint32_t flags,
-    struct wally_descriptor_addresses *addresses);
+    struct wally_descriptor_addresses **output);
 
 /**
  * Create an output descriptor checksum.

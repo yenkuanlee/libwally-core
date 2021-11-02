@@ -3408,25 +3408,19 @@ static int descriptor_scriptpubkey_to_address(
     return ret;
 }
 
-static void free_descriptor_address_item(
-    struct wally_descriptor_address_item *item, size_t item_len)
+int wally_descriptor_addresses_free(struct wally_descriptor_addresses *addresses)
 {
-    size_t index;
-    if (item) {
-        for (index = 0; index < item_len; ++index) {
-            wally_free_string(item[index].address);
-        }
-        clear_and_free(item, item_len * sizeof(*item));
-    }
-}
+    size_t i;
 
-int wally_descriptor_addresses_free(
-    struct wally_descriptor_addresses *addresses)
-{
     if (!addresses)
         return WALLY_EINVAL;
-    free_descriptor_address_item(addresses->items, addresses->num_items);
-    wally_clear(addresses, sizeof(*addresses));
+
+    if (addresses->items) {
+        for (i = 0; i < addresses->num_items; ++i)
+            wally_free_string(addresses->items[i].address);
+        clear_and_free(addresses->items, addresses->num_items * sizeof(*addresses->items));
+    }
+    clear_and_free(addresses, sizeof(*addresses));
     return WALLY_OK;
 }
 
@@ -3550,17 +3544,19 @@ int wally_descriptor_to_addresses(
     uint32_t end_child_num,
     uint32_t network,
     uint32_t flags,
-    struct wally_descriptor_addresses *addresses)
+    struct wally_descriptor_addresses **output)
 {
     int ret;
-    uint32_t child_num;
     uint32_t num_items;
-    size_t index;
+    size_t i;
     const struct address_script_t *addr_item = NULL;
-    struct wally_descriptor_address_item *address_items = NULL;
-    struct wally_descriptor_script_item *script_items = NULL;
+    struct wally_descriptor_addresses *addresses = NULL;
+    struct wally_descriptor_script_item *scripts = NULL;
 
-    if (!addresses || !descriptor || (start_child_num > end_child_num))
+    if (output)
+        *output = NULL;
+
+    if (!output || !descriptor || start_child_num > end_child_num)
         return WALLY_EINVAL;
 
     if (!(addr_item = netaddr_from_network(network)))
@@ -3568,19 +3564,21 @@ int wally_descriptor_to_addresses(
 
     num_items = end_child_num - start_child_num + 1;
 
-    if (!(address_items = wally_calloc(num_items * sizeof(*address_items))))
+    if (!(scripts = wally_calloc(num_items * sizeof(*scripts))))
         return WALLY_ENOMEM;
 
-    if (!(script_items = wally_calloc(num_items * sizeof(*script_items)))) {
-        wally_free(address_items);
+    if (!(addresses = wally_malloc(sizeof(*addresses))))
+        return WALLY_ENOMEM;
+
+    if (!(addresses->items = wally_calloc(num_items * sizeof(*addresses->items)))) {
+        wally_free(addresses);
         return WALLY_ENOMEM;
     }
+    addresses->num_items = num_items;
 
-    index = 0;
-    for (child_num = start_child_num; child_num <= end_child_num; ++child_num) {
-        script_items[index].child_num = child_num;
-        address_items[index].child_num = child_num;
-        ++index;
+    for (i = 0; i < num_items; ++i) {
+        scripts[i].child_num = start_child_num + i;
+        addresses->items[i].child_num = start_child_num + i;
     }
 
     ret = parse_miniscript(
@@ -3588,37 +3586,27 @@ int wally_descriptor_to_addresses(
         vars_in,
         flags,
         DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        (!addr_item) ? NULL : &network,
+        &network,
         0,
         0,
-        script_items,
+        scripts,
         num_items,
         NULL,
         NULL);
-    if (ret == WALLY_OK) {
-        for (index = 0; index < num_items; ++index) {
-            ret = descriptor_scriptpubkey_to_address(addr_item,
-                                                     script_items[index].script,
-                                                     script_items[index].script_len,
-                                                     &address_items[index].address);
-            if (ret != WALLY_OK)
-                break;
-        }
-    }
 
-    if (ret == WALLY_OK) {
-        addresses->items = address_items;
-        addresses->num_items = num_items;
-        address_items = NULL;
-    }
+    for (i = 0; i < num_items && ret == WALLY_OK; ++i)
+        ret = descriptor_scriptpubkey_to_address(addr_item,
+                                                 scripts[i].script, scripts[i].script_len,
+                                                 &addresses->items[i].address);
 
-    if (script_items) {
-        for (index = 0; index < num_items; ++index)
-            clear_and_free(script_items[index].script, script_items[index].script_len);
-        clear_and_free(script_items, num_items * sizeof(*script_items));
-    }
-    if (address_items)
-        free_descriptor_address_item(address_items, num_items);
+    for (i = 0; i < num_items; ++i)
+        clear_and_free(scripts[i].script, scripts[i].script_len);
+    clear_and_free(scripts, num_items * sizeof(*scripts));
+
+    if (ret == WALLY_OK)
+        *output = addresses;
+    else
+        wally_descriptor_addresses_free(addresses);
     return ret;
 }
 
