@@ -997,7 +997,7 @@ static bool check_descriptor_to_addresses(const char *function,
         }
     }
 
-    wally_free_descriptor_addresses(&addresses);
+    wally_descriptor_addresses_free(&addresses);
     return true;
 }
 

@@ -3420,7 +3420,7 @@ static void free_descriptor_address_item(
     }
 }
 
-int wally_free_descriptor_addresses(
+int wally_descriptor_addresses_free(
     struct wally_descriptor_addresses *addresses)
 {
     if (!addresses)

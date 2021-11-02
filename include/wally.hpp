@@ -459,8 +459,8 @@ inline int format_bitcoin_message(const BYTES& bytes, uint32_t flags, BYTES_OUT&
     return written || ret != WALLY_OK ? ret : n == static_cast<size_t>(bytes_out.size()) ? WALLY_OK : WALLY_EINVAL;
 }
 
-inline int free_descriptor_addresses(struct wally_descriptor_addresses* addresses) {
-    int ret = ::wally_free_descriptor_addresses(addresses);
+inline int descriptor_addresses_free(struct wally_descriptor_addresses* addresses) {
+    int ret = ::wally_descriptor_addresses_free(addresses);
     return ret;
 }
 

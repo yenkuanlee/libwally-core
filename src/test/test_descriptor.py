@@ -82,7 +82,7 @@ class DescriptorTests(unittest.TestCase):
             self.assertEqual(len(expected), addrs[0].num_items)
             for i in range(len(expected)):
                 self.assertEqual(expected[i].encode('utf-8'), addrs[0].items[i].address)
-            wally_free_descriptor_addresses(addrs)
+            wally_descriptor_addresses_free(addrs)
 
     def test_create_descriptor_checksum(self):
         # Valid args

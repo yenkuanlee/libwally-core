@@ -311,7 +311,7 @@ for f in (
     ('wally_elements_pegout_script_from_bytes', c_int, [c_void_p, c_ulong, c_void_p, c_ulong, c_void_p, c_ulong, c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_elements_pegout_script_size', c_int, [c_ulong, c_ulong, c_ulong, c_ulong, c_ulong_p]),
     ('wally_format_bitcoin_message', c_int, [c_void_p, c_ulong, c_uint, c_void_p, c_ulong, c_ulong_p]),
-    ('wally_free_descriptor_addresses', c_int, [POINTER(wally_descriptor_addresses)]),
+    ('wally_descriptor_addresses_free', c_int, [POINTER(wally_descriptor_addresses)]),
     ('wally_free_string', c_int, [c_char_p]),
     ('wally_get_operations', c_int, [POINTER(wally_operations)]),
     ('wally_hash160', c_int, [c_void_p, c_ulong, c_void_p, c_ulong]),

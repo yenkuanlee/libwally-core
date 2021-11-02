@@ -39,7 +39,7 @@ struct wally_descriptor_addresses {
  *
  * :param addresses: addresses to free.
  */
-WALLY_CORE_API int wally_free_descriptor_addresses(
+WALLY_CORE_API int wally_descriptor_addresses_free(
     struct wally_descriptor_addresses *addresses);
 #endif /* SWIG_PYTHON */
 
@@ -119,7 +119,7 @@ WALLY_CORE_API int wally_descriptor_to_address(
  * :param network: Number of the network. (bitcoin regtest is set ``0xff``)
  * :param flags: For future use. Must be 0.
  * :param addresses: Destination for the resulting addresses.
- *|    The string returned should be freed using `wally_free_descriptor_addresses`.
+ *|    The string returned should be freed using `wally_descriptor_addresses_free`.
  */
 WALLY_CORE_API int wally_descriptor_to_addresses(
     const char *descriptor,

@@ -451,7 +451,7 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_string(wally_descriptor_to_address);
 %returns_struct(wally_descriptor_to_addresses, wally_descriptor_addresses);
 %returns_size_t(wally_descriptor_to_scriptpubkey);
-%returns_void__(wally_free_descriptor_addresses)
+%returns_void__(wally_descriptor_addresses_free)
 %returns_void__(wally_ec_private_key_verify);
 %returns_void__(wally_ec_public_key_verify);
 %returns_array_(wally_ec_public_key_decompress, 3, 4, EC_PUBLIC_KEY_UNCOMPRESSED_LEN);
