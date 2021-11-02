@@ -35,7 +35,7 @@ struct wally_descriptor_addresses {
 
 #ifndef SWIG_PYTHON
 /**
- * Free addresses allocated by `wally_descriptor_to_addresses`.
+ * Free addresses allocated by `wally_descriptor_to_addresses_alloc`.
  *
  * :param addresses: addresses to free.
  */
@@ -121,7 +121,7 @@ WALLY_CORE_API int wally_descriptor_to_address(
  * :param output: Destination for the resulting addresses.
  *|    The addresses returned should be freed using `wally_descriptor_addresses_free`.
  */
-WALLY_CORE_API int wally_descriptor_to_addresses(
+WALLY_CORE_API int wally_descriptor_to_addresses_alloc(
     const char *descriptor,
     const struct wally_map *vars_in,
     uint32_t start_child_num,

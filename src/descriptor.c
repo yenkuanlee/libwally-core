@@ -3537,7 +3537,7 @@ int wally_descriptor_to_address(
     return ret;
 }
 
-int wally_descriptor_to_addresses(
+int wally_descriptor_to_addresses_alloc(
     const char *descriptor,
     const struct wally_map *vars_in,
     uint32_t start_child_num,

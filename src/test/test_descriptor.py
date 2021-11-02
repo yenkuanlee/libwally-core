@@ -77,7 +77,7 @@ class DescriptorTests(unittest.TestCase):
               ]),
         ]:
             addrs = pointer(wally_descriptor_addresses())
-            ret = wally_descriptor_to_addresses(descriptor, None, start, end, network, 0, addrs)
+            ret = wally_descriptor_to_addresses_alloc(descriptor, None, start, end, network, 0, addrs)
             self.assertEqual(ret, WALLY_OK)
             self.assertEqual(len(expected), addrs[0].num_items)
             for i in range(len(expected)):

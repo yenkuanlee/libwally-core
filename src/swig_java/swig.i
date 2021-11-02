@@ -449,7 +449,8 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_string(wally_descriptor_create_checksum);
 %returns_size_t(wally_descriptor_parse_miniscript);
 %returns_string(wally_descriptor_to_address);
-%returns_struct(wally_descriptor_to_addresses, wally_descriptor_addresses);
+%returns_struct(wally_descriptor_to_addresses_alloc, wally_descriptor_addresses);
+%rename("descriptor_to_addresses") wally_descriptor_to_addresses_alloc;
 %returns_size_t(wally_descriptor_to_scriptpubkey);
 %returns_void__(wally_descriptor_addresses_free)
 %returns_void__(wally_ec_private_key_verify);

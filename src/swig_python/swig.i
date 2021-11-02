@@ -329,6 +329,7 @@ static void destroy_words(PyObject *obj) { (void)obj; }
 %py_int_array(uint64_t, 0xffffffffffffffffull, values, values_len)
 
 %py_opaque_struct(ext_key);
+%py_opaque_struct(wally_descriptor_address_item);
 %py_opaque_struct(wally_psbt);
 %py_opaque_struct(wally_tx);
 %py_opaque_struct(wally_tx_input);
@@ -344,6 +345,7 @@ static void destroy_words(PyObject *obj) { (void)obj; }
 %rename("bip32_key_init") bip32_key_init_alloc;
 %rename("bip32_key_unserialize") bip32_key_unserialize_alloc;
 %rename("bip32_key_with_tweak_from_parent_path") bip32_key_with_tweak_from_parent_path_alloc;
+%rename("descriptor_to_addresses") wally_descriptor_to_addresses_alloc;
 %rename("psbt_clone") wally_psbt_clone_alloc;
 %rename("psbt_elements_init") wally_psbt_elements_init_alloc;
 %rename("psbt_get_global_tx") wally_psbt_get_global_tx_alloc;

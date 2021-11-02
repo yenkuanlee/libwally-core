@@ -294,7 +294,7 @@ for f in (
     ('wally_descriptor_create_checksum', c_int, [c_char_p, POINTER(wally_map), c_uint, c_char_p_p]),
     ('wally_descriptor_parse_miniscript', c_int, [c_char_p, POINTER(wally_map), c_uint, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_descriptor_to_address', c_int, [c_char_p, POINTER(wally_map), c_uint, c_uint, c_uint, c_char_p_p]),
-    ('wally_descriptor_to_addresses', c_int, [c_char_p, POINTER(wally_map), c_uint, c_uint, c_uint, c_uint, POINTER(POINTER(wally_descriptor_addresses))]),
+    ('wally_descriptor_to_addresses_alloc', c_int, [c_char_p, POINTER(wally_map), c_uint, c_uint, c_uint, c_uint, POINTER(POINTER(wally_descriptor_addresses))]),
     ('wally_descriptor_to_scriptpubkey', c_int, [c_char_p, POINTER(wally_map), c_uint, c_uint, c_uint, c_uint, c_uint, c_void_p, c_ulong, c_ulong_p]),
     ('wally_ec_private_key_verify', c_int, [c_void_p, c_ulong]),
     ('wally_ec_public_key_decompress', c_int, [c_void_p, c_ulong, c_void_p, c_ulong]),

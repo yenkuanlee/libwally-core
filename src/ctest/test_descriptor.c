@@ -975,8 +975,8 @@ static bool check_descriptor_to_addresses(const char *function,
     uint32_t flags = 0;
     size_t i;
 
-    int ret = wally_descriptor_to_addresses(descriptor, &g_key_map, start_index, end_index,
-                                            network, flags, &addresses);
+    int ret = wally_descriptor_to_addresses_alloc(descriptor, &g_key_map, start_index, end_index,
+                                                  network, flags, &addresses);
     if (!check_ret(function, ret, WALLY_OK) || addresses->num_items != address_list_len) {
         printf("%s: expected address length: %d, got %d\n", function, (int)address_list_len, (int)addresses->num_items);
         return false;
