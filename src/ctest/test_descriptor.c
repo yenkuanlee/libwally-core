@@ -48,6 +48,28 @@ static const struct wally_map g_key_map = {
 static const uint32_t g_miniscript_index_0 = 0;
 static const uint32_t g_miniscript_index_16 = 0x10;
 
+static bool check_ret(const char *function, int ret, int expected)
+{
+    if (ret != expected)
+        printf("%s: expected %d, got %d\n", function, expected, ret);
+    return ret == expected;
+}
+
+static bool check_varbuff(const char *function, const unsigned char *src, size_t src_len, const char *expected)
+{
+    char *hex = NULL;
+
+    if (!check_ret(function, wally_hex_from_bytes(src, src_len, &hex), WALLY_OK))
+        return false;
+
+    if (strcmp(hex, expected)) {
+        printf("%s: mismatch [%s] != [%s]\n", function, hex, expected);
+        return false;
+    }
+    wally_free_string(hex);
+    return true;
+}
+
 static const struct miniscript_ref_test {
     const char *miniscript;
     const char *scriptpubkey;
@@ -866,30 +888,12 @@ static bool check_parse_miniscript(const char *function, const char *descriptor,
 {
     size_t written = 0;
     unsigned char script[520];
-    char *hex = NULL;
-    bool is_success = false;
     uint32_t index = 0;
 
     int ret = wally_descriptor_parse_miniscript(descriptor, map_in, index, flags,
                                                 script, sizeof(script), &written);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_parse_miniscript NG[%d]\n", ret);
-        return false;
-    }
-
-    ret = wally_hex_from_bytes(script, written, &hex);
-    if (ret != WALLY_OK) {
-        printf("wally_hex_from_bytes NG[%d]\n", ret);
-        return false;
-    }
-
-    if (strncmp(hex, expected, strlen(hex) + 1) == 0)
-        is_success = true;
-    else
-        printf("%s:\n  Input: %s\n  Output: %s\n  Expect: %s\n", function, descriptor, hex, expected);
-
-    wally_free_string(hex);
-    return is_success;
+    return check_ret(function, ret, WALLY_OK) &&
+           check_varbuff(function, script, written, expected);
 }
 
 static bool check_descriptor_to_scriptpubkey(const char *function,
@@ -900,46 +904,27 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
 {
     size_t written = 0;
     unsigned char script[520];
-    char *hex = NULL;
     char *checksum = NULL;
     int ret;
-    bool is_success = false;
-    uint32_t network = 0;
-    uint32_t desc_depth = 0;
-    uint32_t desc_index = 0;
-    uint32_t flags = 0;
+    uint32_t network = 0, desc_depth = 0, desc_index = 0, flags = 0;
     uint32_t index = bip32_index ? *bip32_index : 0;
 
     ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, index, network,
                                            desc_depth, desc_index, flags,
                                            script, sizeof(script), &written);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_scriptpubkey NG[%d]\n", ret);
+    if (!check_ret(function, ret, WALLY_OK))
         return false;
-    }
-
-    ret = wally_hex_from_bytes(script, written, &hex);
-    if (ret != WALLY_OK) {
-        printf("wally_hex_from_bytes NG[%d]\n", ret);
-        return false;
-    }
 
     ret = wally_descriptor_create_checksum(descriptor, &g_key_map, flags, &checksum);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_create_checksum NG[%d]\n", ret);
-        return false;
+    if (check_ret(function, ret, WALLY_OK) &&
+        check_varbuff(function, script, written, expected)) {
+        if (strcmp(checksum, expected_checksum) == 0) {
+            wally_free_string(checksum);
+            return true;
+        }
+        printf("%s:  expected [%s], got [%s]\n", function, checksum, expected_checksum);
     }
-
-    if (strncmp(hex, expected, strlen(hex) + 1) != 0) {
-        printf("%s:\n  Input: %s\n  Output: %s\n", function, descriptor, hex);
-    } else if (strncmp(checksum, expected_checksum, 9) != 0) {
-        printf("%s:\n  Input: %s\n  Checksum: %s\n", function, descriptor, checksum);
-    } else
-        is_success = true;
-
-    wally_free_string(checksum);
-    wally_free_string(hex);
-    return is_success;
+    return false;
 }
 
 static bool check_descriptor_to_scriptpubkey_depth(const char *function,
@@ -950,32 +935,13 @@ static bool check_descriptor_to_scriptpubkey_depth(const char *function,
 {
     size_t written = 0;
     unsigned char script[520];
-    char *hex = NULL;
-    bool is_success = false;
-    uint32_t network = 0;
-    uint32_t flags = 0;
+    uint32_t network = 0, flags = 0;
 
     int ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, 0, network,
                                                depth, index, flags,
                                                script, sizeof(script), &written);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_scriptpubkey NG[%d]\n", ret);
-        return false;
-    }
-
-    ret = wally_hex_from_bytes(script, written, &hex);
-    if (ret != WALLY_OK) {
-        printf("wally_hex_from_bytes NG[%d]\n", ret);
-        return false;
-    }
-
-    if (strncmp(hex, expected_scriptpubkey, strlen(hex) + 1) != 0) {
-        printf("%s:\n  Input: %s\n  Output: %s\n", function, descriptor, hex);
-    } else
-        is_success = true;
-
-    wally_free_string(hex);
-    return is_success;
+    return check_ret(function, ret, WALLY_OK) &&
+           check_varbuff(function, script, written, expected_scriptpubkey);
 }
 
 static bool check_descriptor_to_address(const char *function,
@@ -986,22 +952,15 @@ static bool check_descriptor_to_address(const char *function,
 {
     char *address = NULL;
     uint32_t flags = 0;
-    bool is_success = false;
 
     int ret = wally_descriptor_to_address(descriptor, &g_key_map, bip32_index,
                                           network, flags, &address);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_address NG[%d]\n", ret);
-        return false;
+    if (check_ret(function, ret, WALLY_OK) && strcmp(address, expected_address) == 0) {
+        wally_free_string(address);
+        return true;
     }
-
-    if (strncmp(expected_address, address, strlen(expected_address) + 1) != 0) {
-        printf("%s:\n  Address: %s\n  Expect: %s\n", function, address, expected_address);
-    } else
-        is_success = true;
-
-    wally_free_string(address);
-    return is_success;
+    printf("%s:  expected [%s], got [%s]\n", function, address, expected_address);
+    return false;
 }
 
 static bool check_descriptor_to_addresses(const char *function,
@@ -1012,39 +971,34 @@ static bool check_descriptor_to_addresses(const char *function,
                                           const char **expected_address_list,
                                           size_t address_list_len)
 {
-    struct wally_descriptor_addresses addresses = {NULL, 0};
+    struct wally_descriptor_addresses addresses = { NULL, 0 };
     uint32_t flags = 0;
     size_t i;
-    bool is_success = true;
 
     int ret = wally_descriptor_to_addresses(descriptor, &g_key_map, start_index, end_index,
                                             network, flags, &addresses);
-    if (ret != WALLY_OK) {
-        printf("wally_descriptor_to_addresses NG[%d]\n", ret);
+    if (!check_ret(function, ret, WALLY_OK) || addresses.num_items != address_list_len) {
+        printf("%s: expected address length: %d, got %d\n", function, (int)address_list_len, (int)addresses.num_items);
         return false;
     }
 
-    if (addresses.num_items != address_list_len) {
-        printf("%s:\n  Address length: %zu\n  Expect: %zu\n", function, addresses.num_items, address_list_len);
-    } else {
-        for (i = 0; i < address_list_len; ++i) {
-            const char *expected_address = expected_address_list[i];
-            const char *addr = addresses.items[i].address;
-            uint32_t child_num = addresses.items[i].child_num;
-            uint32_t exp_child_num = start_index + i;
-            if (strncmp(expected_address, addr, strlen(expected_address) + 1) != 0) {
-                printf("%s:\n  Address[%u]: %s\n  Expect: %s\n", function, (uint32_t)i, addr, expected_address_list[i]);
-                is_success = false;
-            }
-            if (child_num != exp_child_num) {
-                printf("%s:\n  childNum[%u]: %u\n  Expect: %u\n", function, (uint32_t)i, child_num, exp_child_num);
-                is_success = false;
-            }
+    for (i = 0; i < address_list_len; ++i) {
+        const char *expected_address = expected_address_list[i];
+        const char *addr = addresses.items[i].address;
+        uint32_t child_num = addresses.items[i].child_num;
+        uint32_t exp_child_num = start_index + i;
+        if (strncmp(expected_address, addr, strlen(expected_address) + 1) != 0) {
+            printf("%s: expected address: %s, got%s\n", function, expected_address_list[i], addr);
+            return false;
+        }
+        if (child_num != exp_child_num) {
+            printf("%s: expected child_num: %u, got %u\n", function, child_num, exp_child_num);
+            return false;
         }
     }
 
     wally_free_descriptor_addresses(&addresses);
-    return is_success;
+    return true;
 }
 
 static bool check_descriptor_scriptpubkey_error(const char *function,
@@ -1053,18 +1007,12 @@ static bool check_descriptor_scriptpubkey_error(const char *function,
 {
     size_t written = 0;
     unsigned char script[520];
-    uint32_t flags = 0;
-    uint32_t desc_depth = 0;
-    uint32_t desc_index = 0;
+    uint32_t flags = 0, desc_depth = 0, desc_index = 0;
 
     int ret = wally_descriptor_to_scriptpubkey(descriptor, &g_key_map, 0, network,
                                                desc_depth, desc_index, flags,
                                                script, sizeof(script), &written);
-    if (ret == WALLY_EINVAL)
-        return true;
-
-    printf("wally_descriptor_to_scriptpubkey Fail[%d] name[%s]\n", ret, function);
-    return false;
+    return check_ret(function, ret, WALLY_EINVAL);
 }
 
 static bool check_descriptor_address_error(const char *function,
@@ -1073,14 +1021,9 @@ static bool check_descriptor_address_error(const char *function,
 {
     char *address = NULL;
     uint32_t flags = 0;
+
     int ret = wally_descriptor_to_address(descriptor, &g_key_map, 0, network, flags, &address);
-
-    if (ret == WALLY_EINVAL)
-        return true;
-
-    printf("wally_descriptor_to_address Fail[%d] name[%s]\n", ret, function);
-    wally_free_string(address);
-    return false;
+    return check_ret(function, ret, WALLY_EINVAL);
 }
 
 int main(void)
