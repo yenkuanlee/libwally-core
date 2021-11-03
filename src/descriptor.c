@@ -3500,40 +3500,44 @@ int wally_descriptor_to_scriptpubkey(
     return ret;
 }
 
-int wally_descriptor_to_address(
+int wally_descriptor_to_addresses(
     const char *descriptor,
     const struct wally_map *vars_in,
     uint32_t child_num,
     uint32_t network,
     uint32_t flags,
-    char **output)
+    struct wally_descriptor_address_item *addresses,
+    size_t num_addresses)
 {
+    const struct address_script_t *addr_item = netaddr_from_network(network);
+    struct wally_descriptor_script_item *scripts;
+    size_t i;
     int ret;
-    const struct address_script_t *addr_item;
-    struct wally_descriptor_script_item script_item = { NULL, 0, child_num };
 
-    if (!output || !(addr_item = netaddr_from_network(network)))
+    if (!descriptor || !addr_item || !addresses || !num_addresses)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(
-        descriptor,
-        vars_in,
-        flags,
-        DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        (!addr_item) ? NULL : &network,
-        0,
-        0,
-        &script_item,
-        1,
-        NULL,
-        NULL);
-    if (ret == WALLY_OK)
-        ret = descriptor_scriptpubkey_to_address(addr_item,
-                                                 script_item.script,
-                                                 script_item.script_len,
-                                                 output);
+    if (!(scripts = wally_calloc(num_addresses * sizeof(*scripts))))
+        return WALLY_ENOMEM;
 
-    clear_and_free(script_item.script, script_item.script_len);
+    for (i = 0; i < num_addresses; ++i) {
+        scripts[i].child_num = child_num + i;
+        addresses[i].address = NULL;
+        addresses[i].child_num = child_num + i;
+    }
+
+    ret = parse_miniscript(descriptor, vars_in, flags,
+                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+                           &network, 0, 0, scripts, num_addresses, NULL, NULL);
+
+    for (i = 0; i < num_addresses && ret == WALLY_OK; ++i)
+        ret = descriptor_scriptpubkey_to_address(addr_item,
+                                                 scripts[i].script, scripts[i].script_len,
+                                                 &addresses[i].address);
+
+    for (i = 0; i < num_addresses; ++i)
+        clear_and_free(scripts[i].script, scripts[i].script_len);
+    clear_and_free(scripts, num_addresses * sizeof(*scripts));
     return ret;
 }
 
@@ -3547,11 +3551,8 @@ int wally_descriptor_to_addresses_alloc(
     struct wally_descriptor_addresses **output)
 {
     int ret;
-    uint32_t num_items;
-    size_t i;
-    const struct address_script_t *addr_item = NULL;
+    const uint32_t num_items = end_child_num - start_child_num + 1;
     struct wally_descriptor_addresses *addresses = NULL;
-    struct wally_descriptor_script_item *scripts = NULL;
 
     if (output)
         *output = NULL;
@@ -3559,54 +3560,37 @@ int wally_descriptor_to_addresses_alloc(
     if (!output || !descriptor || start_child_num > end_child_num)
         return WALLY_EINVAL;
 
-    if (!(addr_item = netaddr_from_network(network)))
-        return WALLY_EINVAL;
-
-    num_items = end_child_num - start_child_num + 1;
-
-    if (!(scripts = wally_calloc(num_items * sizeof(*scripts))))
-        return WALLY_ENOMEM;
-
-    if (!(addresses = wally_malloc(sizeof(*addresses))))
-        return WALLY_ENOMEM;
-
-    if (!(addresses->items = wally_calloc(num_items * sizeof(*addresses->items)))) {
+    if (!(addresses = wally_malloc(sizeof(*addresses))) ||
+        !(addresses->items = wally_calloc(num_items * sizeof(*addresses->items)))) {
         wally_free(addresses);
         return WALLY_ENOMEM;
     }
     addresses->num_items = num_items;
 
-    for (i = 0; i < num_items; ++i) {
-        scripts[i].child_num = start_child_num + i;
-        addresses->items[i].child_num = start_child_num + i;
-    }
-
-    ret = parse_miniscript(
-        descriptor,
-        vars_in,
-        flags,
-        DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        &network,
-        0,
-        0,
-        scripts,
-        num_items,
-        NULL,
-        NULL);
-
-    for (i = 0; i < num_items && ret == WALLY_OK; ++i)
-        ret = descriptor_scriptpubkey_to_address(addr_item,
-                                                 scripts[i].script, scripts[i].script_len,
-                                                 &addresses->items[i].address);
-
-    for (i = 0; i < num_items; ++i)
-        clear_and_free(scripts[i].script, scripts[i].script_len);
-    clear_and_free(scripts, num_items * sizeof(*scripts));
-
+    ret = wally_descriptor_to_addresses(descriptor, vars_in, start_child_num,
+                                        network, flags, addresses->items, num_items);
     if (ret == WALLY_OK)
         *output = addresses;
     else
         wally_descriptor_addresses_free(addresses);
+    return ret;
+}
+
+int wally_descriptor_to_address(const char *descriptor, const struct wally_map *vars_in,
+                                uint32_t child_num, uint32_t network, uint32_t flags,
+                                char **output)
+{
+    struct wally_descriptor_address_item address = { NULL, child_num };
+    int ret;
+
+    if (!output)
+        return WALLY_EINVAL;
+    *output = NULL;
+
+    ret = wally_descriptor_to_addresses(descriptor, vars_in, child_num,
+                                        network, flags, &address, 1);
+    if (ret == WALLY_OK)
+        *output = address.address;
     return ret;
 }
 
