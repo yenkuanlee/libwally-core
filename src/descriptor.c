@@ -385,7 +385,7 @@ static void free_miniscript_node(struct miniscript_node_t *node)
     clear_and_free(node, sizeof(*node));
 }
 
-int check_type_properties(uint32_t property)
+static int check_type_properties(uint32_t property)
 {
     /* K, V, B, W all conflict with each other */
     switch (property & MINISCRIPT_TYPE_MASK) {
