@@ -109,18 +109,6 @@
 #define DESCRIPTOR_KIND_MINISCRIPT_OR_I      (0x08000000 | DESCRIPTOR_KIND_MINISCRIPT)
 #define DESCRIPTOR_KIND_MINISCRIPT_MASK      (0xffffff00 | DESCRIPTOR_KIND_MINISCRIPT)
 
-#define DESCRIPTOR_TYPE_WRAPPER_A      (0x00000100)
-#define DESCRIPTOR_TYPE_WRAPPER_S      (0x00000200)
-#define DESCRIPTOR_TYPE_WRAPPER_C      (0x00000400)
-#define DESCRIPTOR_TYPE_WRAPPER_T      (0x00000800)
-#define DESCRIPTOR_TYPE_WRAPPER_D      (0x00001000)
-#define DESCRIPTOR_TYPE_WRAPPER_V      (0x00002000)
-#define DESCRIPTOR_TYPE_WRAPPER_J      (0x00004000)
-#define DESCRIPTOR_TYPE_WRAPPER_N      (0x00008000)
-#define DESCRIPTOR_TYPE_WRAPPER_L      (0x00010000)
-#define DESCRIPTOR_TYPE_WRAPPER_U      (0x00020000)
-#define DESCRIPTOR_TYPE_WRAPPER_MASK   (0xffffff00)
-
 /* Type */
 struct miniscript_node_t;
 
@@ -157,15 +145,6 @@ struct miniscript_item_t {
     wally_descriptor_to_script_t generate_function;
 };
 
-struct miniscript_wrapper_item_t {
-    const char *name;
-    uint32_t kind;
-    uint32_t type_properties;
-    int inner_num;
-    wally_verify_descriptor_t verify_function;
-    wally_miniscript_wrapper_to_script_t generate_function;
-};
-
 struct miniscript_node_t {
     const struct miniscript_item_t *info;
     struct miniscript_node_t *next;
@@ -176,7 +155,6 @@ struct miniscript_node_t {
     char wrapper_str[12];
     int kind;
     uint32_t type_properties;
-    uint32_t wrapper;
     int64_t number;
     char *data;
     char *derive_path;
@@ -2243,31 +2221,24 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     }
 };
 
-static const struct miniscript_wrapper_item_t miniscript_wrapper_table[] = {
-    { "a", DESCRIPTOR_TYPE_WRAPPER_A, TYPE_W | PROP_D | PROP_U, 0, verify_miniscript_wrapper_a, generate_by_wrapper_a },
-    { "s", DESCRIPTOR_TYPE_WRAPPER_S, 0, 0, verify_miniscript_wrapper_s, generate_by_wrapper_s },
-    { "c", DESCRIPTOR_TYPE_WRAPPER_C, 0, 0, verify_miniscript_wrapper_c, generate_by_wrapper_c },
-    { "t", DESCRIPTOR_TYPE_WRAPPER_T, 0, 0, verify_miniscript_wrapper_t, generate_by_wrapper_t },
-    { "d", DESCRIPTOR_TYPE_WRAPPER_D, 0, 0, verify_miniscript_wrapper_d, generate_by_wrapper_d },
-    { "v", DESCRIPTOR_TYPE_WRAPPER_V, 0, 0, verify_miniscript_wrapper_v, generate_by_wrapper_v },
-    { "j", DESCRIPTOR_TYPE_WRAPPER_J, 0, 0, verify_miniscript_wrapper_j, generate_by_wrapper_j },
-    { "n", DESCRIPTOR_TYPE_WRAPPER_N, 0, 0, verify_miniscript_wrapper_n, generate_by_wrapper_n },
-    { "l", DESCRIPTOR_TYPE_WRAPPER_L, 0, 0, verify_miniscript_wrapper_l, generate_by_wrapper_l },
-    { "u", DESCRIPTOR_TYPE_WRAPPER_U, 0, 0, verify_miniscript_wrapper_u, generate_by_wrapper_u },
+static const struct miniscript_wrapper_item_t {
+    const char *name;
+    uint32_t type_properties;
+    int inner_num;
+    wally_verify_descriptor_t verify_function;
+    wally_miniscript_wrapper_to_script_t generate_function;
+} miniscript_wrapper_table[] = {
+    { "a", TYPE_W | PROP_D | PROP_U, 0, verify_miniscript_wrapper_a, generate_by_wrapper_a },
+    { "s", 0, 0, verify_miniscript_wrapper_s, generate_by_wrapper_s },
+    { "c", 0, 0, verify_miniscript_wrapper_c, generate_by_wrapper_c },
+    { "t", 0, 0, verify_miniscript_wrapper_t, generate_by_wrapper_t },
+    { "d", 0, 0, verify_miniscript_wrapper_d, generate_by_wrapper_d },
+    { "v", 0, 0, verify_miniscript_wrapper_v, generate_by_wrapper_v },
+    { "j", 0, 0, verify_miniscript_wrapper_j, generate_by_wrapper_j },
+    { "n", 0, 0, verify_miniscript_wrapper_n, generate_by_wrapper_n },
+    { "l", 0, 0, verify_miniscript_wrapper_l, generate_by_wrapper_l },
+    { "u", 0, 0, verify_miniscript_wrapper_u, generate_by_wrapper_u },
 };
-
-static uint32_t convert_miniscript_wrapper_flag(const char *wrapper)
-{
-    uint32_t result = 0;
-    size_t i;
-
-    for (i = 0; i < NUM_ELEMS(miniscript_wrapper_table); ++i) {
-        if (strchr(wrapper, miniscript_wrapper_table[i].name[0])) {
-            result |= miniscript_wrapper_table[i].kind;
-        }
-    }
-    return result;
-}
 
 static const struct miniscript_item_t *search_miniscript_info(const char *name, int target)
 {
@@ -2449,7 +2420,7 @@ static int generate_script_from_miniscript(
         if (ret != WALLY_OK)
             return ret;
 
-        if (node->wrapper != 0) {
+        if (node->wrapper_str[0] != '\0') {
             /* Iterate from the back of wrapper string to the front, generating */
             len = strlen(node->wrapper_str);
             for (index = len; index > 0; --index) {
@@ -3109,11 +3080,6 @@ static int analyze_miniscript(
                                        node,
                                        parent_node);
 
-    if (ret == WALLY_OK && node->info && (node->info->kind & DESCRIPTOR_KIND_MINISCRIPT) &&
-        node->wrapper_str[0] != '\0') {
-        node->wrapper = convert_miniscript_wrapper_flag(node->wrapper_str);
-    }
-
     if (ret == WALLY_OK && node->info && node->info->verify_function)
         ret = node->info->verify_function(node, parent_node);
 
@@ -3129,7 +3095,7 @@ static int analyze_miniscript(
         }
     }
 
-    if (ret == WALLY_OK && node->wrapper) {
+    if (ret == WALLY_OK && node->wrapper_str[0] != '\0') {
         /* Iterate from the back of wrapper string to the front, validating */
         const size_t len = strlen(node->wrapper_str);
         size_t table_idx;
