@@ -1563,7 +1563,7 @@ static int generate_by_miniscript_concat(
     size_t total = prev_insert_num + first_insert_num + second_insert_num;
     size_t index = 0;
     size_t offset = 0;
-    struct miniscript_node_t *child[3];
+    struct miniscript_node_t *child[3] = { NULL, NULL, NULL };
     size_t default_indexes[] = {0, 1, 2};
     const size_t *indexes = reference_indexes;
     size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ?
@@ -1574,8 +1574,6 @@ static int generate_by_miniscript_concat(
 
     if (!reference_indexes)
         indexes = default_indexes;
-
-    wally_bzero(child, sizeof(child));
 
     for (index = 0; index < target_num; ++index) {
         child[index] = (index == 0) ? node->child : child[index - 1]->next;
@@ -2503,8 +2501,6 @@ static int generate_script_from_miniscript(
         int8_t wildcard_pos = -1;
         uint32_t count = 0;
 
-        wally_bzero(&extkey, sizeof(struct ext_key));
-        wally_bzero(&derive_extkey, sizeof(struct ext_key));
         ret = wally_base58_to_bytes(node->data, BASE58_FLAG_CHECKSUM,
                                     bip32_serialized, sizeof(bip32_serialized), &output_len);
         if (ret != WALLY_OK)
@@ -2732,12 +2728,11 @@ static int analyze_miniscript_key(
     int size;
     unsigned char pubkey[EC_PUBLIC_KEY_UNCOMPRESSED_LEN];
     unsigned char privkey_bytes[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
+    unsigned char bip32_serialized[BIP32_SERIALIZED_LEN + BASE58_CHECKSUM_LEN];
     struct ext_key extkey;
 
     if (!node || (parent_node && !parent_node->info))
         return WALLY_EINVAL;
-
-    wally_bzero(&extkey, sizeof(struct ext_key));
 
     /*
      * key origin identification
@@ -2822,7 +2817,6 @@ static int analyze_miniscript_key(
             node->is_derive = true;
     }
 
-    unsigned char bip32_serialized[BIP32_SERIALIZED_LEN + BASE58_CHECKSUM_LEN];
     ret = wally_base58_to_bytes(node->data,
                                 BASE58_FLAG_CHECKSUM,
                                 bip32_serialized,
@@ -2985,10 +2979,9 @@ static int analyze_miniscript(
 
     str_len = strlen(miniscript);
 
-    if (!(node = wally_malloc(sizeof(*node))))
+    if (!(node = wally_calloc(sizeof(*node))))
         return WALLY_ENOMEM;
 
-    wally_bzero(node, sizeof(struct miniscript_node_t));
     wally_bzero(buffer, sizeof(buffer));
     if (parent_node)
         node->parent = parent_node;
