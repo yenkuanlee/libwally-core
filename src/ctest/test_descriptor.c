@@ -689,17 +689,15 @@ static const struct descriptor_address_test {
 static struct descriptor_address_list_test {
     const char *name;
     const char *descriptor;
-    const uint32_t start_index;
-    const uint32_t end_index;
+    const uint32_t child_num;
     const uint32_t network;
-    const size_t address_list_num;
+    const size_t num_addresses;
     const char *address_list[30];
 } g_descriptor_addresses_cases[] = {
     {
         "address list - p2wsh multisig (0-29)",
         "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))#t2zpj2eu",
         0,
-        29,
         WALLY_NETWORK_BITCOIN_MAINNET,
         30,
         {
@@ -739,7 +737,6 @@ static struct descriptor_address_list_test {
         "address list - p2wsh multisig (30-40)",
         "wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))#t2zpj2eu",
         30,
-        40,
         WALLY_NETWORK_BITCOIN_MAINNET,
         11,
         {
@@ -965,39 +962,27 @@ static bool check_descriptor_to_address(const char *function,
 
 static bool check_descriptor_to_addresses(const char *function,
                                           const char *descriptor,
-                                          const uint32_t start_index,
-                                          const uint32_t end_index,
+                                          const uint32_t child_num,
                                           const uint32_t network,
                                           const char **expected_address_list,
-                                          size_t address_list_len)
+                                          size_t num_addresses)
 {
-    struct wally_descriptor_addresses *addresses = NULL;
+    char *addresses[64];
     uint32_t flags = 0;
     size_t i;
 
-    int ret = wally_descriptor_to_addresses_alloc(descriptor, &g_key_map, start_index, end_index,
-                                                  network, flags, &addresses);
-    if (!check_ret(function, ret, WALLY_OK) || addresses->num_items != address_list_len) {
-        printf("%s: expected address length: %d, got %d\n", function, (int)address_list_len, (int)addresses->num_items);
+    int ret = wally_descriptor_to_addresses(descriptor, &g_key_map, child_num,
+                                            network, flags, addresses, num_addresses);
+    if (!check_ret(function, ret, WALLY_OK))
         return false;
-    }
 
-    for (i = 0; i < address_list_len; ++i) {
-        const char *expected_address = expected_address_list[i];
-        const char *addr = addresses->items[i].address;
-        uint32_t child_num = addresses->items[i].child_num;
-        uint32_t exp_child_num = start_index + i;
-        if (strncmp(expected_address, addr, strlen(expected_address) + 1) != 0) {
-            printf("%s: expected address: %s, got%s\n", function, expected_address_list[i], addr);
+    for (i = 0; i < num_addresses; ++i) {
+        if (strcmp(expected_address_list[i], addresses[i]) != 0) {
+            printf("%s: expected address: %s, got%s\n", function, expected_address_list[i], addresses[i]);
             return false;
         }
-        if (child_num != exp_child_num) {
-            printf("%s: expected child_num: %u, got %u\n", function, child_num, exp_child_num);
-            return false;
-        }
+        wally_free_string(addresses[i]);
     }
-
-    wally_descriptor_addresses_free(addresses);
     return true;
 }
 
@@ -1102,11 +1087,10 @@ int main(void)
         if (!check_descriptor_to_addresses(
                 g_descriptor_addresses_cases[i].name,
                 g_descriptor_addresses_cases[i].descriptor,
-                g_descriptor_addresses_cases[i].start_index,
-                g_descriptor_addresses_cases[i].end_index,
+                g_descriptor_addresses_cases[i].child_num,
                 g_descriptor_addresses_cases[i].network,
                 g_descriptor_addresses_cases[i].address_list,
-                g_descriptor_addresses_cases[i].address_list_num)) {
+                g_descriptor_addresses_cases[i].num_addresses)) {
             printf("[%s] test failed!\n", g_descriptor_addresses_cases[i].name);
             tests_ok = false;
         }

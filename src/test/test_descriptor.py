@@ -60,29 +60,21 @@ class DescriptorTests(unittest.TestCase):
 
     def test_descriptor_to_addresses(self):
         # Valid args
-        for descriptor, start, end, network, expected in [
-            ('wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))', 0, 10, NETWORK_BTC_MAIN,
+        for descriptor, child_num, network, expected in [
+            ('wsh(multi(1,xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/1/0/*,xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/0/0/*))', 0, NETWORK_BTC_MAIN,
               [
                 'bc1qvjtfmrxu524qhdevl6yyyasjs7xmnzjlqlu60mrwepact60eyz9s9xjw0c',
                 'bc1qp6rfclasvmwys7w7j4svgc2mrujq9m73s5shpw4e799hwkdcqlcsj464fw',
                 'bc1qsflxzyj2f2evshspl9n5n745swcvs5k7p5t8qdww5unxpjwdvw5qx53ms4',
                 'bc1qmhmj2mswyvyj4az32mzujccvd4dgr8s0lfzaum4n4uazeqc7xxvsr7e28n',
                 'bc1qjeu2wa5jwvs90tv9t9xz99njnv3we3ux04fn7glw3vqsk4ewuaaq9kdc9t',
-                'bc1qc6626sa08a4ktk3nqjrr65qytt9k273u24mfy2ld004g76jzxmdqjgpm2c',
-                'bc1qwlq7jjqcklrcqypvdndjx0fyrudgrymm67gcx3e09sekgs28u47smq0lx5',
-                'bc1qx8qq9k2mtqarugg3ctcsm2um22ahmq5uttrecy5ufku0ukfgpwrs7epn38',
-                'bc1qgrs4qzvw4aat2k38fvmrqf3ucaanqz2wxe5yy5cewwmqn06evxgq02wv43',
-                'bc1qnkpr4y7fp7jwad3gfngczwsv9069rq96cl7lpq4h9j3eng9mwjzsssr520',
-                'bc1q7yzadku3kxs855wgjxnyr2nk3e44ed75p07lzhnj53ynpczg78nq0leae5',
               ]),
         ]:
-            addrs = pointer(wally_descriptor_addresses())
-            ret = wally_descriptor_to_addresses_alloc(descriptor, None, start, end, network, 0, addrs)
+            addrs = (c_char_p * len(expected))()
+            ret = wally_descriptor_to_addresses(descriptor, None, child_num, network, 0, addrs, len(expected))
             self.assertEqual(ret, WALLY_OK)
-            self.assertEqual(len(expected), addrs[0].num_items)
             for i in range(len(expected)):
-                self.assertEqual(expected[i].encode('utf-8'), addrs[0].items[i].address)
-            wally_descriptor_addresses_free(addrs)
+                self.assertEqual(expected[i].encode('utf-8'), addrs[i])
 
     def test_create_descriptor_checksum(self):
         # Valid args

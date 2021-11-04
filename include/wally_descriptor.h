@@ -16,33 +16,6 @@ struct wally_map;
 #define WALLY_MINISCRIPT_WITNESS_SCRIPT  0x00
 #define WALLY_MINISCRIPT_TAPSCRIPT       0x01
 
-#ifdef SWIG
-struct wally_descriptor_address_item;
-struct wally_descriptor_addresses;
-#else
-/** A descriptor address */
-struct wally_descriptor_address_item {
-    char *address;
-    uint32_t child_num;
-};
-
-/** A list of descriptor addresses */
-struct wally_descriptor_addresses {
-    struct wally_descriptor_address_item *items;
-    size_t num_items;
-};
-#endif
-
-#ifndef SWIG_PYTHON
-/**
- * Free addresses allocated by `wally_descriptor_to_addresses_alloc`.
- *
- * :param addresses: addresses to free.
- */
-WALLY_CORE_API int wally_descriptor_addresses_free(
-    struct wally_descriptor_addresses *addresses);
-#endif /* SWIG_PYTHON */
-
 /**
  * Create a script corresponding to a miniscript string.
  *
@@ -114,21 +87,22 @@ WALLY_CORE_API int wally_descriptor_to_address(
  *
  * :param descriptor: Output descriptor.
  * :param vars_in: Map of variable names to values.
- * :param start_child_num: Number of the derive start path.
- * :param end_child_num: Number of the derive end path.
+ * :param child_num: The first BIP32 child number to derive.
  * :param network: Number of the network. (bitcoin regtest is set ``0xff``)
  * :param flags: For future use. Must be 0.
  * :param output: Destination for the resulting addresses.
- *|    The addresses returned should be freed using `wally_descriptor_addresses_free`.
+ * :param num_outputs: The number of items in ``output``. Addresses will be
+ *|    generated into this array starting from child_num, incrementing by 1.
+ *|    The addresses returned should be freed using `wally_free_string`.
  */
-WALLY_CORE_API int wally_descriptor_to_addresses_alloc(
+WALLY_CORE_API int wally_descriptor_to_addresses(
     const char *descriptor,
     const struct wally_map *vars_in,
-    uint32_t start_child_num,
-    uint32_t end_child_num,
+    uint32_t child_num,
     uint32_t network,
     uint32_t flags,
-    struct wally_descriptor_addresses **output);
+    char **output,
+    size_t num_outputs);
 
 /**
  * Create an output descriptor checksum.

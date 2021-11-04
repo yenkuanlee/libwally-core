@@ -62,17 +62,19 @@ static int check_result(int result)
     return result;
 }
 
-static bool ulonglong_cast(PyObject *item, unsigned long long *val)
+static bool size_t_cast(PyObject *item, size_t *val)
 {
-#if PY_MAJOR_VERSION < 3
-    if (PyInt_Check(item)) {
-        *val = PyInt_AsUnsignedLongLongMask(item);
+    if (PyLong_Check(item)) {
+        *val = PyLong_AsSize_t(item);
         if (!PyErr_Occurred())
           return true;
         PyErr_Clear();
-        return false;
     }
-#endif
+    return false;
+}
+
+static bool ulonglong_cast(PyObject *item, unsigned long long *val)
+{
     if (PyLong_Check(item)) {
         *val = PyLong_AsUnsignedLongLong(item);
         if (!PyErr_Occurred())
@@ -208,6 +210,28 @@ static void destroy_words(PyObject *obj) { (void)obj; }
    }
 }
 
+/* Output string arrays are converted to a native python string list and returned */
+%typemap(in) (char** output, size_t num_outputs) {
+    if (!size_t_cast($input, &$2)) {
+        PyErr_SetString(PyExc_OverflowError, "Invalid output size");
+        SWIG_fail;
+    }
+    $1 = (void *) wally_malloc($2 * sizeof(char*));
+}
+%typemap(argout) (char** output, size_t num_outputs) {
+   if ($1 != NULL) {
+       size_t i;
+       Py_DecRef($result);
+       $result = PyList_New($2);
+       for (i = 0; i < $2; i++) {
+           PyObject *s = PyString_FromString($1[i]);
+           PyList_SetItem($result, i, s);
+           wally_free_string($1[i]);
+       }
+       wally_free($1);
+   }
+}
+
 /* Opaque types are passed along as capsules */
 %define %py_opaque_struct(NAME)
 %typemap(in, numinputs=0) struct NAME **output (struct NAME * w) {
@@ -329,7 +353,6 @@ static void destroy_words(PyObject *obj) { (void)obj; }
 %py_int_array(uint64_t, 0xffffffffffffffffull, values, values_len)
 
 %py_opaque_struct(ext_key);
-%py_opaque_struct(wally_descriptor_address_item);
 %py_opaque_struct(wally_psbt);
 %py_opaque_struct(wally_tx);
 %py_opaque_struct(wally_tx_input);
@@ -345,7 +368,6 @@ static void destroy_words(PyObject *obj) { (void)obj; }
 %rename("bip32_key_init") bip32_key_init_alloc;
 %rename("bip32_key_unserialize") bip32_key_unserialize_alloc;
 %rename("bip32_key_with_tweak_from_parent_path") bip32_key_with_tweak_from_parent_path_alloc;
-%rename("descriptor_to_addresses") wally_descriptor_to_addresses_alloc;
 %rename("psbt_clone") wally_psbt_clone_alloc;
 %rename("psbt_elements_init") wally_psbt_elements_init_alloc;
 %rename("psbt_get_global_tx") wally_psbt_get_global_tx_alloc;

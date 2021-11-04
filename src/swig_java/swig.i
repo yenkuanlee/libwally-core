@@ -50,6 +50,12 @@ static uint32_t uint32_cast(JNIEnv *jenv, jlong value) {
     return (uint32_t)value;
 }
 
+static size_t size_t_cast(JNIEnv *jenv, jlong value) {
+    if (value < 0)
+        SWIG_JavaThrowException(jenv, SWIG_JavaIndexOutOfBoundsException, "Invalid size_t");
+    return (size_t)value;
+}
+
 /* Use a static class to hold our opaque pointers */
 #define OBJ_CLASS "com/blockstream/libwally/Wally$Obj"
 
@@ -98,10 +104,23 @@ static unsigned char* malloc_or_throw(JNIEnv *jenv, size_t len) {
     return p;
 }
 
-static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len) {
+static jbyteArray create_array(JNIEnv *jenv, const unsigned char *p, size_t len) {
     jbyteArray ret = (*jenv)->NewByteArray(jenv, len);
     if (ret)
         (*jenv)->SetByteArrayRegion(jenv, ret, 0, len, (const jbyte*)p);
+    return ret;
+}
+
+static jobjectArray create_string_array(JNIEnv *jenv, char **p, size_t len) {
+    size_t i;
+    jclass clazz = (*jenv)->FindClass(jenv, "java/lang/String");
+    jobjectArray ret = (*jenv)->NewObjectArray(jenv, len, clazz, NULL);
+    if (ret) {
+        for (i = 0; i < len && !(*jenv)->ExceptionOccurred(jenv); ++i) {
+            jstring s = (*jenv)->NewStringUTF(jenv, p[i]);
+            (*jenv)->SetObjectArrayElement(jenv, ret, i, s);
+        }
+    }
     return ret;
 }
 
@@ -172,6 +191,23 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
             $result = (*jenv)->NewStringUTF(jenv, *$1);
         wally_free_string(*$1);
     }
+}
+
+/* Output string arrays are converted to native Java string arrays and returned */
+%typemap(in) (char** output, size_t num_outputs) {
+    $2 = size_t_cast(jenv, $input);
+    if (!(*jenv)->ExceptionOccurred(jenv)) {
+        $1 = (void *) wally_malloc($2 * sizeof(char*));
+    }
+}
+%typemap(argout) (char** output, size_t num_outputs) {
+   if ($1 != NULL) {
+       size_t i;
+       $result = create_string_array(jenv, $1, $2);
+       for (i = 0; i < $2; ++i)
+           wally_free_string($1[i]);
+       wally_free($1);
+   }
 }
 
 /* uint32_t input arguments are taken as longs and cast with range checking */
@@ -335,6 +371,9 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %define %returns_string(FUNC)
 %return_decls(FUNC, String, jstring)
 %enddef
+%define %returns_sarray(FUNC)
+%return_decls(FUNC, String[], jobject)
+%enddef
 %define %returns_struct(FUNC, STRUCT)
 %return_decls(FUNC, Object, jobject)
 %enddef
@@ -371,7 +410,6 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %java_opaque_struct(wally_tx, 6);
 %java_opaque_struct(wally_map, 7);
 %java_opaque_struct(wally_psbt, 8);
-%java_opaque_struct(wally_descriptor_addresses, 9);
 
 /* Our wrapped functions return types */
 %returns_void__(bip32_key_free);
@@ -449,10 +487,8 @@ static jbyteArray create_array(JNIEnv *jenv, const unsigned char* p, size_t len)
 %returns_string(wally_descriptor_create_checksum);
 %returns_size_t(wally_descriptor_parse_miniscript);
 %returns_string(wally_descriptor_to_address);
-%returns_struct(wally_descriptor_to_addresses_alloc, wally_descriptor_addresses);
-%rename("descriptor_to_addresses") wally_descriptor_to_addresses_alloc;
+%returns_sarray(wally_descriptor_to_addresses);
 %returns_size_t(wally_descriptor_to_scriptpubkey);
-%returns_void__(wally_descriptor_addresses_free)
 %returns_void__(wally_ec_private_key_verify);
 %returns_void__(wally_ec_public_key_verify);
 %returns_array_(wally_ec_public_key_decompress, 3, 4, EC_PUBLIC_KEY_UNCOMPRESSED_LEN);

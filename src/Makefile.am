@@ -159,6 +159,7 @@ all: swig_java/wallycore.jar
 
 SWIG_JAVA_TEST_DEPS = \
     $(sjs)/$(cbt)/test_bip32.class \
+    $(sjs)/$(cbt)/test_descriptor.class \
     $(sjs)/$(cbt)/test_tx.class \
     $(sjs)/$(cbt)/test_scripts.class \
     $(sjs)/$(cbt)/test_mnemonic.class
@@ -345,6 +346,7 @@ if BUILD_ELEMENTS
 endif
 if USE_SWIG_PYTHON
 	$(AM_V_at)$(PYTHON_SWIGTEST) swig_python/contrib/bip32.py
+	$(AM_V_at)$(PYTHON_SWIGTEST) swig_python/contrib/descriptor.py
 	$(AM_V_at)$(PYTHON_SWIGTEST) swig_python/contrib/mnemonic.py
 	$(AM_V_at)$(PYTHON_SWIGTEST) swig_python/contrib/psbt.py
 	$(AM_V_at)$(PYTHON_SWIGTEST) swig_python/contrib/sha.py
@@ -365,6 +367,7 @@ if BUILD_ELEMENTS
 	$(AM_V_at)$(JAVA_TEST)test_pegs
 endif
 	$(AM_V_at)$(JAVA_TEST)test_bip32
+	$(AM_V_at)$(JAVA_TEST)test_descriptor
 	$(AM_V_at)$(JAVA_TEST)test_mnemonic
 	$(AM_V_at)$(JAVA_TEST)test_scripts
 	$(AM_V_at)$(JAVA_TEST)test_tx

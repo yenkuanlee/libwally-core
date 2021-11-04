@@ -347,11 +347,6 @@ inline int cleanup(uint32_t flags) {
     return ret;
 }
 
-inline int descriptor_addresses_free(struct wally_descriptor_addresses* addresses) {
-    int ret = ::wally_descriptor_addresses_free(addresses);
-    return ret;
-}
-
 template <class DESCRIPTOR, class VARS_IN>
 inline int descriptor_create_checksum(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t flags, char** output) {
     int ret = ::wally_descriptor_create_checksum(detail::get_p(descriptor), detail::get_p(vars_in), flags, output);
@@ -372,8 +367,8 @@ inline int descriptor_to_address(const DESCRIPTOR& descriptor, const VARS_IN& va
 }
 
 template <class DESCRIPTOR, class VARS_IN>
-inline int descriptor_to_addresses_alloc(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t start_child_num, uint32_t end_child_num, uint32_t network, uint32_t flags, struct wally_descriptor_addresses** output) {
-    int ret = ::wally_descriptor_to_addresses_alloc(detail::get_p(descriptor), detail::get_p(vars_in), start_child_num, end_child_num, network, flags, output);
+inline int descriptor_to_addresses(const DESCRIPTOR& descriptor, const VARS_IN& vars_in, uint32_t child_num, uint32_t network, uint32_t flags, char** output, size_t num_outputs) {
+    int ret = ::wally_descriptor_to_addresses(detail::get_p(descriptor), detail::get_p(vars_in), child_num, network, flags, output, num_outputs);
     return ret;
 }
 
