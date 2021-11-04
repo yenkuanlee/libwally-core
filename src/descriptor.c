@@ -17,11 +17,11 @@
 
 /* Definition */
 /* Properties and expressions definition */
-#define MINISCRIPT_TYPE_B     0x01  /* Base expressions */
-#define MINISCRIPT_TYPE_V     0x02  /* Verify expressions */
-#define MINISCRIPT_TYPE_K     0x04  /* Key expressions */
-#define MINISCRIPT_TYPE_W     0x08  /* Wrapped expressions */
-#define MINISCRIPT_TYPE_MASK  0x0F  /* expressions mask */
+#define TYPE_B     0x01  /* Base expressions */
+#define TYPE_V     0x02  /* Verify expressions */
+#define TYPE_K     0x04  /* Key expressions */
+#define TYPE_W     0x08  /* Wrapped expressions */
+#define TYPE_MASK  0x0F  /* expressions mask */
 
 #define PROP_Z  0x00000100  /* Zero-arg property */
 #define PROP_O  0x00000200  /* One-arg property */
@@ -54,9 +54,9 @@
 #define DESCRIPTOR_KIND_BIP32_PUBLIC_KEY    (0x020000 | DESCRIPTOR_KIND_BIP32)
 
 /* OP_0 properties: Bzudemsx */
-#define PROP_OP_0  (MINISCRIPT_TYPE_B | PROP_Z | PROP_U | PROP_D | PROP_E | PROP_M | PROP_S | PROP_X)
+#define PROP_OP_0  (TYPE_B | PROP_Z | PROP_U | PROP_D | PROP_E | PROP_M | PROP_S | PROP_X)
 /* OP_1 properties: Bzufmx */
-#define PROP_OP_1  (MINISCRIPT_TYPE_B | PROP_Z | PROP_U | PROP_F | PROP_M | PROP_X)
+#define PROP_OP_1  (TYPE_B | PROP_Z | PROP_U | PROP_F | PROP_M | PROP_X)
 
 #define DESCRIPTOR_LIMIT_LENGTH             1000000
 #define DESCRIPTOR_BIP32_PATH_NUM_MAX       256
@@ -383,11 +383,11 @@ static void free_miniscript_node(struct miniscript_node_t *node)
 static int check_type_properties(uint32_t property)
 {
     /* K, V, B, W all conflict with each other */
-    switch (property & MINISCRIPT_TYPE_MASK) {
-    case MINISCRIPT_TYPE_B:
-    case MINISCRIPT_TYPE_V:
-    case MINISCRIPT_TYPE_K:
-    case MINISCRIPT_TYPE_W:
+    switch (property & TYPE_MASK) {
+    case TYPE_B:
+    case TYPE_V:
+    case TYPE_K:
+    case TYPE_W:
         break;
     default:
         return WALLY_EINVAL;
@@ -397,23 +397,23 @@ static int check_type_properties(uint32_t property)
         return WALLY_EINVAL;
     if ((property & PROP_N) && (property & PROP_Z))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_V) && (property & PROP_D))
+    if ((property & TYPE_V) && (property & PROP_D))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_K) && !(property & PROP_U))
+    if ((property & TYPE_K) && !(property & PROP_U))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_V) && (property & PROP_U))
+    if ((property & TYPE_V) && (property & PROP_U))
         return WALLY_EINVAL;
     if ((property & PROP_E) && (property & PROP_F))
         return WALLY_EINVAL;
     if ((property & PROP_E) && !(property & PROP_D))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_V) && (property & PROP_E))
+    if ((property & TYPE_V) && (property & PROP_E))
         return WALLY_EINVAL;
     if ((property & PROP_D) && (property & PROP_F))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_V) && !(property & PROP_F))
+    if ((property & TYPE_V) && !(property & PROP_F))
         return WALLY_EINVAL;
-    if ((property & MINISCRIPT_TYPE_K) && !(property & PROP_S))
+    if ((property & TYPE_K) && !(property & PROP_S))
         return WALLY_EINVAL;
     if ((property & PROP_Z) && !(property & PROP_M))
         return WALLY_EINVAL;
@@ -627,9 +627,9 @@ static uint32_t verify_miniscript_andor_property(uint32_t x_property, uint32_t y
 {
     /* Y and Z are both B, K, or V */
     uint32_t prop = PROP_X;
-    uint32_t need_x = MINISCRIPT_TYPE_B | PROP_D | PROP_U;
-    uint32_t need_yz = MINISCRIPT_TYPE_B | MINISCRIPT_TYPE_K | MINISCRIPT_TYPE_V;
-    if (!(x_property & MINISCRIPT_TYPE_B) || !(x_property & need_x))
+    uint32_t need_x = TYPE_B | PROP_D | PROP_U;
+    uint32_t need_yz = TYPE_B | TYPE_K | TYPE_V;
+    if (!(x_property & TYPE_B) || !(x_property & need_x))
         return 0;
     if (!(y_property & z_property & need_yz))
         return 0;
@@ -683,15 +683,15 @@ static uint32_t verify_miniscript_and_v_property(uint32_t x_property, uint32_t y
     prop |= y_property & (PROP_U | PROP_X);
     prop |= x_property & y_property & (PROP_D | PROP_M | PROP_Z);
     prop |= (x_property | y_property) & PROP_S;
-    if (x_property & MINISCRIPT_TYPE_V)
-        prop |= y_property & (MINISCRIPT_TYPE_K | MINISCRIPT_TYPE_V | MINISCRIPT_TYPE_B);
+    if (x_property & TYPE_V)
+        prop |= y_property & (TYPE_K | TYPE_V | TYPE_B);
     if (x_property & PROP_Z)
         prop |= y_property & PROP_N;
     if ((x_property | y_property) & PROP_Z)
         prop |= (x_property | y_property) & PROP_O;
     if (y_property & PROP_F || x_property & PROP_S)
         prop |= PROP_F;
-    if (!(prop & MINISCRIPT_TYPE_MASK))
+    if (!(prop & TYPE_MASK))
         return 0;
 
     return prop;
@@ -723,8 +723,8 @@ static int verify_miniscript_and_b(struct miniscript_node_t *node, struct minisc
     node->type_properties |= x_prop & y_prop & (PROP_D | PROP_Z | PROP_M);
     node->type_properties |= (x_prop | y_prop) & PROP_S;
     node->type_properties |= x_prop & PROP_N;
-    if (y_prop & MINISCRIPT_TYPE_W)
-        node->type_properties |= x_prop & MINISCRIPT_TYPE_B;
+    if (y_prop & TYPE_W)
+        node->type_properties |= x_prop & TYPE_B;
     if ((x_prop | y_prop) & PROP_Z)
         node->type_properties |= (x_prop | y_prop) & PROP_O;
     if (x_prop & PROP_Z)
@@ -764,9 +764,9 @@ static int verify_miniscript_or_b(struct miniscript_node_t *node, struct miniscr
     y_prop = node->child->next->type_properties;
     node->type_properties = PROP_D | PROP_U | PROP_X;
     node->type_properties |= x_prop & y_prop & (PROP_Z | PROP_S | PROP_E);
-    if (!(~x_prop & (MINISCRIPT_TYPE_B | PROP_D)) &&
-        !(~y_prop & (MINISCRIPT_TYPE_W | PROP_D)))
-        node->type_properties |= MINISCRIPT_TYPE_B;
+    if (!(~x_prop & (TYPE_B | PROP_D)) &&
+        !(~y_prop & (TYPE_W | PROP_D)))
+        node->type_properties |= TYPE_B;
     if ((x_prop | y_prop) & PROP_Z)
         node->type_properties |= (x_prop | y_prop) & PROP_O;
     if (((x_prop | y_prop) & PROP_S) &&
@@ -787,8 +787,8 @@ static int verify_miniscript_or_c(struct miniscript_node_t *node, struct miniscr
     y_prop = node->child->next->type_properties;
     node->type_properties = PROP_F | PROP_X;
     node->type_properties |= x_prop & y_prop & (PROP_Z | PROP_S);
-    if (!(~x_prop & (MINISCRIPT_TYPE_B | PROP_D | PROP_U)))
-        node->type_properties |= y_prop & MINISCRIPT_TYPE_V;
+    if (!(~x_prop & (TYPE_B | PROP_D | PROP_U)))
+        node->type_properties |= y_prop & TYPE_V;
     if (y_prop & PROP_Z)
         node->type_properties |= x_prop & PROP_O;
     if (x_prop & PROP_E && ((x_prop | y_prop) & PROP_S))
@@ -809,8 +809,8 @@ static int verify_miniscript_or_d(struct miniscript_node_t *node, struct miniscr
     node->type_properties = PROP_X;
     node->type_properties |= x_prop & y_prop & (PROP_Z | PROP_E | PROP_S);
     node->type_properties |= y_prop & (PROP_U | PROP_F | PROP_D);
-    if (!(~x_prop & (MINISCRIPT_TYPE_B | PROP_D | PROP_U)))
-        node->type_properties |= y_prop & MINISCRIPT_TYPE_B;
+    if (!(~x_prop & (TYPE_B | PROP_D | PROP_U)))
+        node->type_properties |= y_prop & TYPE_B;
     if (y_prop & PROP_Z)
         node->type_properties |= x_prop & PROP_O;
     if (x_prop & PROP_E && ((x_prop | y_prop) & PROP_S))
@@ -822,9 +822,8 @@ static int verify_miniscript_or_d(struct miniscript_node_t *node, struct miniscr
 static uint32_t verify_miniscript_or_i_property(uint32_t x_property, uint32_t y_property)
 {
     uint32_t prop = PROP_X;
-    prop |= x_property & y_property &
-            (MINISCRIPT_TYPE_V | MINISCRIPT_TYPE_B | MINISCRIPT_TYPE_K | PROP_U | PROP_F | PROP_S);
-    if (!(prop & MINISCRIPT_TYPE_MASK))
+    prop |= x_property & y_property & (TYPE_V | TYPE_B | TYPE_K | PROP_U | PROP_F | PROP_S);
+    if (!(prop & TYPE_MASK))
         return 0;
 
     prop |= (x_property | y_property) & PROP_D;
@@ -880,9 +879,9 @@ static int verify_miniscript_thresh(struct miniscript_node_t *node, struct minis
             return WALLY_EINVAL;
 
         if (!count) {
-            if (~(child->type_properties) & (MINISCRIPT_TYPE_B | PROP_D | PROP_U))
+            if (~(child->type_properties) & (TYPE_B | PROP_D | PROP_U))
                 return WALLY_EINVAL;
-        } else if (~(child->type_properties) & (MINISCRIPT_TYPE_W | PROP_D | PROP_U))
+        } else if (~(child->type_properties) & (TYPE_W | PROP_D | PROP_U))
             return WALLY_EINVAL;
 
         if (~(child->type_properties) & PROP_E)
@@ -901,7 +900,7 @@ static int verify_miniscript_thresh(struct miniscript_node_t *node, struct minis
     if (k > count)
         return WALLY_EINVAL;
 
-    node->type_properties = MINISCRIPT_TYPE_B | PROP_D | PROP_U;
+    node->type_properties = TYPE_B | PROP_D | PROP_U;
     if (args == 0)
         node->type_properties |= PROP_Z;
     else if (args == 1)
@@ -921,12 +920,12 @@ static int verify_miniscript_wrapper_a(struct miniscript_node_t *node, struct mi
     uint32_t x_prop = node->type_properties;
     (void)parent;
 
-    if (!(x_prop & MINISCRIPT_TYPE_B))
+    if (!(x_prop & TYPE_B))
         return WALLY_EINVAL;
 
-    node->type_properties &= ~MINISCRIPT_TYPE_B;
-    node->type_properties |= MINISCRIPT_TYPE_W;
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
+    node->type_properties &= ~TYPE_B;
+    node->type_properties |= TYPE_W;
+    node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
     node->type_properties |= PROP_X;
 
     return WALLY_OK;
@@ -936,15 +935,15 @@ static int verify_miniscript_wrapper_a(struct miniscript_node_t *node, struct mi
 static int verify_miniscript_wrapper_s(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     uint32_t x_prop = node->type_properties;
-    uint32_t need_type = MINISCRIPT_TYPE_B | PROP_O;
+    uint32_t need_type = TYPE_B | PROP_O;
     (void)parent;
 
     if ((x_prop & need_type) != need_type)
         return WALLY_EINVAL;
 
     node->type_properties &= ~need_type;
-    node->type_properties |= MINISCRIPT_TYPE_W;
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S | PROP_X;
+    node->type_properties |= TYPE_W;
+    node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S | PROP_X;
 
     return WALLY_OK;
 }
@@ -953,12 +952,12 @@ static int verify_miniscript_wrapper_c(struct miniscript_node_t *node, struct mi
 {
     uint32_t x_prop = node->type_properties;
     (void)parent;
-    if (!(x_prop & MINISCRIPT_TYPE_K))
+    if (!(x_prop & TYPE_K))
         return WALLY_EINVAL;
 
-    node->type_properties &= ~MINISCRIPT_TYPE_K;
-    node->type_properties |= MINISCRIPT_TYPE_B;
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M;
+    node->type_properties &= ~TYPE_K;
+    node->type_properties |= TYPE_B;
+    node->type_properties &= TYPE_MASK | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M;
     node->type_properties |= PROP_U | PROP_S;
 
     return WALLY_OK;
@@ -969,7 +968,7 @@ static int verify_miniscript_wrapper_t(struct miniscript_node_t *node, struct mi
     (void)parent;
     node->type_properties = verify_miniscript_and_v_property(
         node->type_properties, PROP_OP_1);
-    if (!(node->type_properties & MINISCRIPT_TYPE_MASK))
+    if (!(node->type_properties & TYPE_MASK))
         return WALLY_EINVAL;
     /* prop >= PROP_F */
     return WALLY_OK;
@@ -978,15 +977,15 @@ static int verify_miniscript_wrapper_t(struct miniscript_node_t *node, struct mi
 static int verify_miniscript_wrapper_d(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     uint32_t x_prop = node->type_properties;
-    uint32_t need_type = MINISCRIPT_TYPE_V | PROP_Z;
+    uint32_t need_type = TYPE_V | PROP_Z;
     (void)parent;
 
     if ((x_prop & need_type) != need_type)
         return WALLY_EINVAL;
 
     node->type_properties &= ~need_type;
-    node->type_properties |= MINISCRIPT_TYPE_B;
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_M | PROP_S;
+    node->type_properties |= TYPE_B;
+    node->type_properties &= TYPE_MASK | PROP_M | PROP_S;
     node->type_properties |= PROP_N | PROP_U | PROP_D | PROP_X;
     if (x_prop & PROP_Z)
         node->type_properties |= PROP_O;
@@ -1002,12 +1001,12 @@ static int verify_miniscript_wrapper_v(struct miniscript_node_t *node, struct mi
     uint32_t x_prop = node->type_properties;
     (void)parent;
 
-    if (!(x_prop & MINISCRIPT_TYPE_B))
+    if (!(x_prop & TYPE_B))
         return WALLY_EINVAL;
 
-    node->type_properties &= ~MINISCRIPT_TYPE_B;
-    node->type_properties |= MINISCRIPT_TYPE_V;
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_M | PROP_S;
+    node->type_properties &= ~TYPE_B;
+    node->type_properties |= TYPE_V;
+    node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_M | PROP_S;
     node->type_properties |= PROP_F | PROP_X;
     return WALLY_OK;
 }
@@ -1015,13 +1014,13 @@ static int verify_miniscript_wrapper_v(struct miniscript_node_t *node, struct mi
 static int verify_miniscript_wrapper_j(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     uint32_t x_prop = node->type_properties;
-    uint32_t need_type = MINISCRIPT_TYPE_B | PROP_N;
+    uint32_t need_type = TYPE_B | PROP_N;
     (void)parent;
 
     if ((x_prop & need_type) != need_type)
         return WALLY_EINVAL;
 
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_O | PROP_U | PROP_M | PROP_S;
+    node->type_properties &= TYPE_MASK | PROP_O | PROP_U | PROP_M | PROP_S;
     node->type_properties |= PROP_N | PROP_D | PROP_X;
     if (x_prop & PROP_F) {
         node->type_properties &= ~PROP_F;
@@ -1033,10 +1032,10 @@ static int verify_miniscript_wrapper_j(struct miniscript_node_t *node, struct mi
 static int verify_miniscript_wrapper_n(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (!(node->type_properties & MINISCRIPT_TYPE_B))
+    if (!(node->type_properties & TYPE_B))
         return WALLY_EINVAL;
 
-    node->type_properties &= MINISCRIPT_TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
+    node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
     node->type_properties |= PROP_X;
     return WALLY_OK;
 }
@@ -2139,12 +2138,12 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     },
     {   /* c:pk_k */
         "pk", DESCRIPTOR_KIND_DESCRIPTOR_PK | DESCRIPTOR_KIND_MINISCRIPT_PK,
-        MINISCRIPT_TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
+        TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_descriptor_pk, generate_by_descriptor_pk
     },
     {   /* c:pk_h */
         "pkh", DESCRIPTOR_KIND_DESCRIPTOR_PKH | DESCRIPTOR_KIND_MINISCRIPT_PKH,
-        MINISCRIPT_TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
+        TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_descriptor_pkh, generate_by_descriptor_pkh
     },
     {
@@ -2155,7 +2154,7 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     },
     {
         "multi", DESCRIPTOR_KIND_DESCRIPTOR_MULTI | DESCRIPTOR_KIND_MINISCRIPT_MULTI,
-        MINISCRIPT_TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S,
+        TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S,
         1, verify_descriptor_multi, generate_by_descriptor_multi
     },
     {
@@ -2170,42 +2169,42 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     /* miniscript */
     {
         "pk_k", DESCRIPTOR_KIND_MINISCRIPT_PK_K,
-        MINISCRIPT_TYPE_K | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
+        TYPE_K | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_miniscript_pk, generate_by_miniscript_pk_k
     },
     {
         "pk_h", DESCRIPTOR_KIND_MINISCRIPT_PK_H,
-        MINISCRIPT_TYPE_K | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
+        TYPE_K | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_miniscript_pkh, generate_by_miniscript_pk_h
     },
     {
         "older", DESCRIPTOR_KIND_MINISCRIPT_OLDER,
-        MINISCRIPT_TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
+        TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
         1, verify_miniscript_older, generate_by_miniscript_older
     },
     {
         "after", DESCRIPTOR_KIND_MINISCRIPT_AFTER,
-        MINISCRIPT_TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
+        TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
         1, verify_miniscript_after, generate_by_miniscript_after
     },
     {
         "sha256", DESCRIPTOR_KIND_MINISCRIPT_SHA256,
-        MINISCRIPT_TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
+        TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_sha256, generate_by_miniscript_sha256
     },
     {
         "hash256", DESCRIPTOR_KIND_MINISCRIPT_HASH256,
-        MINISCRIPT_TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
+        TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_hash256, generate_by_miniscript_hash256
     },
     {
         "ripemd160", DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160,
-        MINISCRIPT_TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
+        TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_ripemd160, generate_by_miniscript_ripemd160
     },
     {
         "hash160", DESCRIPTOR_KIND_MINISCRIPT_HASH160,
-        MINISCRIPT_TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
+        TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_hash160, generate_by_miniscript_hash160
     },
     {
@@ -2215,7 +2214,7 @@ static const struct miniscript_item_t miniscript_info_table[] = {
         "and_v", DESCRIPTOR_KIND_MINISCRIPT_AND_V, 0, 2, verify_miniscript_and_v, generate_by_miniscript_and_v
     },
     {
-        "and_b", DESCRIPTOR_KIND_MINISCRIPT_AND_B, MINISCRIPT_TYPE_B | PROP_U,
+        "and_b", DESCRIPTOR_KIND_MINISCRIPT_AND_B, TYPE_B | PROP_U,
         2, verify_miniscript_and_b, generate_by_miniscript_and_b
     },
     {
@@ -2223,27 +2222,27 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     },
     {
         "or_b", DESCRIPTOR_KIND_MINISCRIPT_OR_B,
-        MINISCRIPT_TYPE_B | PROP_D | PROP_U,
+        TYPE_B | PROP_D | PROP_U,
         2, verify_miniscript_or_b, generate_by_miniscript_or_b
     },
     {
-        "or_c", DESCRIPTOR_KIND_MINISCRIPT_OR_C, MINISCRIPT_TYPE_V, 2, verify_miniscript_or_c, generate_by_miniscript_or_c
+        "or_c", DESCRIPTOR_KIND_MINISCRIPT_OR_C, TYPE_V, 2, verify_miniscript_or_c, generate_by_miniscript_or_c
     },
     {
-        "or_d", DESCRIPTOR_KIND_MINISCRIPT_OR_D, MINISCRIPT_TYPE_B, 2, verify_miniscript_or_d, generate_by_miniscript_or_d
+        "or_d", DESCRIPTOR_KIND_MINISCRIPT_OR_D, TYPE_B, 2, verify_miniscript_or_d, generate_by_miniscript_or_d
     },
     {
         "or_i", DESCRIPTOR_KIND_MINISCRIPT_OR_I, 0, 2, verify_miniscript_or_i, generate_by_miniscript_or_i
     },
     {
         "thresh", DESCRIPTOR_KIND_MINISCRIPT_THRESH,
-        MINISCRIPT_TYPE_B | PROP_D | PROP_U,
+        TYPE_B | PROP_D | PROP_U,
         -1, verify_miniscript_thresh, generate_by_miniscript_thresh
     }
 };
 
 static const struct miniscript_wrapper_item_t miniscript_wrapper_table[] = {
-    { "a", DESCRIPTOR_TYPE_WRAPPER_A, MINISCRIPT_TYPE_W | PROP_D | PROP_U, 0, verify_miniscript_wrapper_a, generate_by_wrapper_a },
+    { "a", DESCRIPTOR_TYPE_WRAPPER_A, TYPE_W | PROP_D | PROP_U, 0, verify_miniscript_wrapper_a, generate_by_wrapper_a },
     { "s", DESCRIPTOR_TYPE_WRAPPER_S, 0, 0, verify_miniscript_wrapper_s, generate_by_wrapper_s },
     { "c", DESCRIPTOR_TYPE_WRAPPER_C, 0, 0, verify_miniscript_wrapper_c, generate_by_wrapper_c },
     { "t", DESCRIPTOR_TYPE_WRAPPER_T, 0, 0, verify_miniscript_wrapper_t, generate_by_wrapper_t },
@@ -2978,7 +2977,7 @@ static int analyze_miniscript_value(
     node->number = strtoll(node->data, &err_ptr, 10);
     if (!err_ptr || !*err_ptr) {
         node->kind = DESCRIPTOR_KIND_NUMBER;
-        node->type_properties = MINISCRIPT_TYPE_B | PROP_Z | PROP_U | PROP_M | PROP_X;
+        node->type_properties = TYPE_B | PROP_Z | PROP_U | PROP_M | PROP_X;
         if (node->number == 0) {
             node->type_properties |= PROP_D | PROP_E | PROP_S;
         } else {
