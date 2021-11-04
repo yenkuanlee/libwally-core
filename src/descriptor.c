@@ -15,7 +15,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-/* Definition */
+#define NUM_ELEMS(a) (sizeof(a) / sizeof(a[0]))
+
+/* Definitions */
 /* Properties and expressions definition */
 #define TYPE_B     0x01  /* Base expressions */
 #define TYPE_V     0x02  /* Verify expressions */
@@ -157,7 +159,7 @@ struct miniscript_item_t {
 
 struct miniscript_wrapper_item_t {
     const char *name;
-    int kind;
+    uint32_t kind;
     uint32_t type_properties;
     int inner_num;
     wally_verify_descriptor_t verify_function;
@@ -2257,12 +2259,11 @@ static const struct miniscript_wrapper_item_t miniscript_wrapper_table[] = {
 static uint32_t convert_miniscript_wrapper_flag(const char *wrapper)
 {
     uint32_t result = 0;
-    size_t index;
-    size_t max = sizeof(miniscript_wrapper_table) / sizeof(struct miniscript_wrapper_item_t);
+    size_t i;
 
-    for (index = 0; index < max; ++index) {
-        if (strchr(wrapper, miniscript_wrapper_table[index].name[0])) {
-            result |= (uint32_t)miniscript_wrapper_table[index].kind;
+    for (i = 0; i < NUM_ELEMS(miniscript_wrapper_table); ++i) {
+        if (strchr(wrapper, miniscript_wrapper_table[i].name[0])) {
+            result |= miniscript_wrapper_table[i].kind;
         }
     }
     return result;
@@ -2440,8 +2441,6 @@ static int generate_script_from_miniscript(
     size_t len;
     size_t index;
     size_t table_idx;
-    size_t max;
-    const struct miniscript_wrapper_item_t *item = NULL;
 
     if (node->info) {
         output_len = *write_len;
@@ -2451,24 +2450,19 @@ static int generate_script_from_miniscript(
             return ret;
 
         if (node->wrapper != 0) {
-            /* back from wrapper string */
-            max = sizeof(miniscript_wrapper_table) / sizeof(struct miniscript_item_t);
+            /* Iterate from the back of wrapper string to the front, generating */
             len = strlen(node->wrapper_str);
             for (index = len; index > 0; --index) {
-                item = NULL;
-                for (table_idx = 0; table_idx < max; ++table_idx) {
-                    if (miniscript_wrapper_table[table_idx].name[0] == node->wrapper_str[index - 1]) {
-                        item = &miniscript_wrapper_table[table_idx];
+                for (table_idx = 0; table_idx < NUM_ELEMS(miniscript_wrapper_table); ++table_idx) {
+                    const struct miniscript_wrapper_item_t *item = miniscript_wrapper_table + table_idx;
+                    if (item->name[0] == node->wrapper_str[index - 1]) {
+                        if ((ret = item->generate_function(script, script_len, &output_len) != WALLY_OK))
+                            return ret; /* Item generate failed */
                         break;
                     }
                 }
-                if (!item) {
-                    return WALLY_EINVAL;
-                }
-
-                ret = item->generate_function(script, script_len, &output_len);
-                if (ret != WALLY_OK)
-                    return ret;
+                if (table_idx == NUM_ELEMS(miniscript_wrapper_table))
+                    return WALLY_EINVAL; /* Wrapper type not found */
             }
         }
         *write_len = output_len;
@@ -3136,35 +3130,32 @@ static int analyze_miniscript(
     }
 
     if (ret == WALLY_OK && node->wrapper) {
-        const struct miniscript_wrapper_item_t *item = NULL;
-        size_t len;
+        /* Iterate from the back of wrapper string to the front, validating */
+        const size_t len = strlen(node->wrapper_str);
         size_t table_idx;
-        size_t max;
-        /* back from wrapper string */
-        max = sizeof(miniscript_wrapper_table) / sizeof(struct miniscript_item_t);
-        len = strlen(node->wrapper_str);
+
         for (index = len; index > 0; --index) {
-            item = NULL;
-            for (table_idx = 0; table_idx < max; ++table_idx) {
-                if (miniscript_wrapper_table[table_idx].name[0] == node->wrapper_str[index - 1]) {
-                    item = &miniscript_wrapper_table[table_idx];
+            for (table_idx = 0; table_idx < NUM_ELEMS(miniscript_wrapper_table); ++table_idx) {
+                const struct miniscript_wrapper_item_t *item = miniscript_wrapper_table + table_idx;
+                if (item->name[0] == node->wrapper_str[index - 1]) {
+                    if ((ret = item->verify_function(node, NULL) != WALLY_OK))
+                        goto finish; /* Item verify failed */
                     break;
                 }
             }
-            if (!item) {
-                ret = WALLY_EINVAL;
-                break;
+            if (table_idx == NUM_ELEMS(miniscript_wrapper_table)) {
+                ret = WALLY_EINVAL; /* Wrapper type not found */
+                goto finish;
             }
-
-            ret = item->verify_function(node, NULL);
-            if (ret != WALLY_OK)
-                break;
         }
-        if (ret == WALLY_OK)
-            ret = check_type_properties(node->type_properties);
+
+        ret = check_type_properties(node->type_properties);
     }
 
-    if (ret == WALLY_OK) {
+finish:
+    if (ret != WALLY_OK)
+        free_miniscript_node(node);
+    else {
         *generate_node = node;
         if (parent_node && !parent_node->child)
             parent_node->child = node;
@@ -3175,13 +3166,9 @@ static int analyze_miniscript(
         } else {
             node->chain_count = 1;
         }
-    } else {
-        free_miniscript_node(node);
     }
 
-    if (sub_str)
-        wally_bzero(sub_str, sub_str_len);
-    wally_free(sub_str);
+    clear_and_free(sub_str, sub_str_len);
     return ret;
 }
 
