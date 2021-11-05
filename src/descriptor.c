@@ -2165,19 +2165,18 @@ static const struct miniscript_item_t miniscript_info_table[] = {
 
 static const struct miniscript_wrapper_item_t {
     const char *name;
-    uint32_t type_properties;
     wally_miniscript_wrapper_to_script_t generate_function;
 } miniscript_wrapper_table[] = {
-    { "a", TYPE_W | PROP_D | PROP_U, generate_by_wrapper_a },
-    { "s", 0, generate_by_wrapper_s },
-    { "c", 0, generate_by_wrapper_c },
-    { "t", 0, generate_by_wrapper_t },
-    { "d", 0, generate_by_wrapper_d },
-    { "v", 0, generate_by_wrapper_v },
-    { "j", 0, generate_by_wrapper_j },
-    { "n", 0, generate_by_wrapper_n },
-    { "l", 0, generate_by_wrapper_l },
-    { "u", 0, generate_by_wrapper_u },
+    { "a", generate_by_wrapper_a },
+    { "s", generate_by_wrapper_s },
+    { "c", generate_by_wrapper_c },
+    { "t", generate_by_wrapper_t },
+    { "d", generate_by_wrapper_d },
+    { "v", generate_by_wrapper_v },
+    { "j", generate_by_wrapper_j },
+    { "n", generate_by_wrapper_n },
+    { "l", generate_by_wrapper_l },
+    { "u", generate_by_wrapper_u },
 };
 
 static const struct miniscript_item_t *search_miniscript_info(const char *name, int target)
