@@ -905,12 +905,11 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
     /* Validate the nodes wrappers in reserve order */
     for (i = strlen(node->wrapper_str); i != 0; --i) {
         const uint32_t x_prop = node->type_properties;
+#define PROP_REQUIRE(props) if ((x_prop & (props)) != (props)) return WALLY_EINVAL;
 
         switch(node->wrapper_str[i - 1]) {
         case 'a':
-            if (!(x_prop & TYPE_B))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_B);
             node->type_properties &= ~TYPE_B;
             node->type_properties |= TYPE_W;
             node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
@@ -918,18 +917,14 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
             break;
 
         case 's':
-            if ((x_prop & (TYPE_B | PROP_O)) != (TYPE_B | PROP_O))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_B | PROP_O);
             node->type_properties &= ~(TYPE_B | PROP_O);
             node->type_properties |= TYPE_W;
             node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S | PROP_X;
             break;
 
         case 'c':
-            if (!(x_prop & TYPE_K))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_K);
             node->type_properties &= ~TYPE_K;
             node->type_properties |= TYPE_B;
             node->type_properties &= TYPE_MASK | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M;
@@ -944,9 +939,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
             break;
 
         case 'd':
-            if ((x_prop & (TYPE_V | PROP_Z)) != (TYPE_V | PROP_Z))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_V | PROP_Z);
             node->type_properties &= ~(TYPE_V | PROP_Z);
             node->type_properties |= TYPE_B;
             node->type_properties &= TYPE_MASK | PROP_M | PROP_S;
@@ -960,9 +953,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
             break;
 
         case 'v':
-            if (!(x_prop & TYPE_B))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_B);
             node->type_properties &= ~TYPE_B;
             node->type_properties |= TYPE_V;
             node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_M | PROP_S;
@@ -970,9 +961,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
             break;
 
         case 'j':
-            if ((x_prop & (TYPE_B | PROP_N)) != (TYPE_B | PROP_N))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_B | PROP_N);
             node->type_properties &= TYPE_MASK | PROP_O | PROP_U | PROP_M | PROP_S;
             node->type_properties |= PROP_N | PROP_D | PROP_X;
             if (x_prop & PROP_F) {
@@ -982,9 +971,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
             break;
 
         case 'n':
-            if (!(x_prop & TYPE_B))
-                return WALLY_EINVAL;
-
+            PROP_REQUIRE(TYPE_B);
             node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
             node->type_properties |= PROP_X;
             break;
