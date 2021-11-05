@@ -906,41 +906,35 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
     for (i = strlen(node->wrapper_str); i != 0; --i) {
         const uint32_t x_prop = node->type_properties;
 #define PROP_REQUIRE(props) if ((x_prop & (props)) != (props)) return WALLY_EINVAL
-#define PROP_CHANGE_TYPE(clear, set) node->type_properties &= ~(clear); node->type_properties |= set
+#define PROP_CHANGE_TYPE(clr, set) node->type_properties &= ~(clr); node->type_properties |= set
+#define PROP_CHANGE(keep, set) node->type_properties &= (TYPE_MASK | keep); node->type_properties |= set
 
         switch(node->wrapper_str[i - 1]) {
         case 'a':
             PROP_REQUIRE(TYPE_B);
             PROP_CHANGE_TYPE(TYPE_B, TYPE_W);
-            node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
-            node->type_properties |= PROP_X;
+            PROP_CHANGE(PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S, PROP_X);
             break;
-
         case 's':
             PROP_REQUIRE(TYPE_B | PROP_O);
             PROP_CHANGE_TYPE(TYPE_B | PROP_O, TYPE_W);
-            node->type_properties &= TYPE_MASK | PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S | PROP_X;
+            PROP_CHANGE(PROP_U | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S | PROP_X, 0);
             break;
-
         case 'c':
             PROP_REQUIRE(TYPE_K);
             PROP_CHANGE_TYPE(TYPE_K, TYPE_B);
-            node->type_properties &= TYPE_MASK | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M;
-            node->type_properties |= PROP_U | PROP_S;
+            PROP_CHANGE(PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M, PROP_U | PROP_S);
             break;
-
         case 't':
             node->type_properties = verify_miniscript_and_v_property(x_prop, PROP_OP_1);
             if (!(node->type_properties & TYPE_MASK))
                 return WALLY_EINVAL;
             /* prop >= PROP_F */
             break;
-
         case 'd':
             PROP_REQUIRE(TYPE_V | PROP_Z);
             PROP_CHANGE_TYPE(TYPE_V | PROP_Z, TYPE_B);
-            node->type_properties &= TYPE_MASK | PROP_M | PROP_S;
-            node->type_properties |= PROP_N | PROP_U | PROP_D | PROP_X;
+            PROP_CHANGE(PROP_M | PROP_S, PROP_N | PROP_U | PROP_D | PROP_X);
             if (x_prop & PROP_Z)
                 node->type_properties |= PROP_O;
             if (x_prop & PROP_F) {
@@ -948,42 +942,33 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
                 node->type_properties |= PROP_E;
             }
             break;
-
         case 'v':
             PROP_REQUIRE(TYPE_B);
             PROP_CHANGE_TYPE(TYPE_B, TYPE_V);
-            node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_M | PROP_S;
-            node->type_properties |= PROP_F | PROP_X;
+            PROP_CHANGE(PROP_Z | PROP_O | PROP_N | PROP_M | PROP_S, PROP_F | PROP_X);
             break;
-
         case 'j':
             PROP_REQUIRE(TYPE_B | PROP_N);
             node->type_properties &= TYPE_MASK | PROP_O | PROP_U | PROP_M | PROP_S;
             node->type_properties |= PROP_N | PROP_D | PROP_X;
             if (x_prop & PROP_F) {
-                node->type_properties &= ~PROP_F;
-                node->type_properties |= PROP_E;
+                PROP_CHANGE(~PROP_F, PROP_E);
             }
             break;
-
         case 'n':
             PROP_REQUIRE(TYPE_B);
-            node->type_properties &= TYPE_MASK | PROP_Z | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S;
-            node->type_properties |= PROP_X;
+            PROP_CHANGE(PROP_Z | PROP_O | PROP_N | PROP_D | PROP_F | PROP_E | PROP_M | PROP_S, PROP_X);
             break;
-
         case 'l':
             node->type_properties = verify_miniscript_or_i_property(PROP_OP_0, x_prop);
             if (!node->type_properties)
                 return WALLY_EINVAL;
             break;
-
         case 'u':
             node->type_properties = verify_miniscript_or_i_property(x_prop, PROP_OP_0);
             if (!node->type_properties)
                 return WALLY_EINVAL;
             break;
-
         default:
             return WALLY_EINVAL;     /* Wrapper type not found */
             break;
