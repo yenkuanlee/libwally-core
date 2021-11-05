@@ -2222,20 +2222,19 @@ static const struct miniscript_item_t miniscript_info_table[] = {
 static const struct miniscript_wrapper_item_t {
     const char *name;
     uint32_t type_properties;
-    int inner_num;
     wally_verify_descriptor_t verify_function;
     wally_miniscript_wrapper_to_script_t generate_function;
 } miniscript_wrapper_table[] = {
-    { "a", TYPE_W | PROP_D | PROP_U, 0, verify_miniscript_wrapper_a, generate_by_wrapper_a },
-    { "s", 0, 0, verify_miniscript_wrapper_s, generate_by_wrapper_s },
-    { "c", 0, 0, verify_miniscript_wrapper_c, generate_by_wrapper_c },
-    { "t", 0, 0, verify_miniscript_wrapper_t, generate_by_wrapper_t },
-    { "d", 0, 0, verify_miniscript_wrapper_d, generate_by_wrapper_d },
-    { "v", 0, 0, verify_miniscript_wrapper_v, generate_by_wrapper_v },
-    { "j", 0, 0, verify_miniscript_wrapper_j, generate_by_wrapper_j },
-    { "n", 0, 0, verify_miniscript_wrapper_n, generate_by_wrapper_n },
-    { "l", 0, 0, verify_miniscript_wrapper_l, generate_by_wrapper_l },
-    { "u", 0, 0, verify_miniscript_wrapper_u, generate_by_wrapper_u },
+    { "a", TYPE_W | PROP_D | PROP_U, verify_miniscript_wrapper_a, generate_by_wrapper_a },
+    { "s", 0, verify_miniscript_wrapper_s, generate_by_wrapper_s },
+    { "c", 0, verify_miniscript_wrapper_c, generate_by_wrapper_c },
+    { "t", 0, verify_miniscript_wrapper_t, generate_by_wrapper_t },
+    { "d", 0, verify_miniscript_wrapper_d, generate_by_wrapper_d },
+    { "v", 0, verify_miniscript_wrapper_v, generate_by_wrapper_v },
+    { "j", 0, verify_miniscript_wrapper_j, generate_by_wrapper_j },
+    { "n", 0, verify_miniscript_wrapper_n, generate_by_wrapper_n },
+    { "l", 0, verify_miniscript_wrapper_l, generate_by_wrapper_l },
+    { "u", 0, verify_miniscript_wrapper_u, generate_by_wrapper_u },
 };
 
 static const struct miniscript_item_t *search_miniscript_info(const char *name, int target)
