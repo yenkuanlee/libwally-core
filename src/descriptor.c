@@ -273,10 +273,6 @@ static const struct address_script_t *netaddr_from_addr_family(const char *addr_
 }
 
 /* Function prototype */
-static int generate_by_wrapper_c(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len);
 static int analyze_miniscript_addr(
     const char *message,
     struct miniscript_node_t *node,
@@ -1093,6 +1089,17 @@ static int generate_by_descriptor_wsh(
     return ret;
 }
 
+static int generate_checksig(unsigned char *script, size_t script_len, size_t *write_len)
+{
+    size_t used_len = *write_len;
+    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
+        return WALLY_EINVAL;
+
+    script[used_len] = OP_CHECKSIG;
+    *write_len = used_len + 1;
+    return WALLY_OK;
+}
+
 static int generate_by_descriptor_pk(
     struct miniscript_node_t *node,
     struct miniscript_node_t *parent,
@@ -1101,13 +1108,8 @@ static int generate_by_descriptor_pk(
     size_t script_len,
     size_t *write_len)
 {
-    int ret;
-
-    ret = generate_by_miniscript_pk_k(node, parent, child_num, script, script_len, write_len);
-    if (ret != WALLY_OK)
-        return ret;
-
-    return generate_by_wrapper_c(script, script_len, write_len);
+    int ret = generate_by_miniscript_pk_k(node, parent, child_num, script, script_len, write_len);
+    return ret == WALLY_OK ? generate_checksig(script, script_len, write_len) : ret;
 }
 
 static int generate_by_descriptor_pkh(
@@ -1124,10 +1126,7 @@ static int generate_by_descriptor_pkh(
         return WALLY_EINVAL;
 
     ret = generate_by_miniscript_pk_h(node, parent, child_num, script, script_len, write_len);
-    if (ret != WALLY_OK)
-        return ret;
-
-    return generate_by_wrapper_c(script, script_len, write_len);
+    return ret == WALLY_OK ? generate_checksig(script, script_len, write_len) : ret;
 }
 
 static int generate_by_descriptor_wpkh(
@@ -1876,177 +1875,139 @@ static int generate_by_miniscript_thresh(
     return WALLY_OK;
 }
 
-static int generate_by_wrapper_a(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
+static int generate_miniscript_wrappers(struct miniscript_node_t *node,
+                                        unsigned char *script, size_t script_len, size_t *write_len)
 {
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 2 > script_len) || (used_len + 2 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
+    size_t i;
 
-    memmove(script + 1, script, used_len);
-    script[0] = OP_TOALTSTACK;
-    script[used_len + 1] = OP_FROMALTSTACK;
-    *write_len = used_len + 2;
-    return WALLY_OK;
-}
+    if (node->wrapper_str[0] == '\0')
+        return WALLY_OK; /* No wrappers */
 
-static int generate_by_wrapper_s(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
+    if (!*write_len)
+        return WALLY_EINVAL; /* Nothing to wrap */
 
-    memmove(script + 1, script, used_len);
-    script[0] = OP_SWAP;
-    *write_len = used_len + 1;
-    return WALLY_OK;
-}
+    /* Validate the nodes wrappers in reserve order */
+    for (i = strlen(node->wrapper_str); i != 0; --i) {
+        size_t used_len = *write_len;
 
-static int generate_by_wrapper_c(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
+        switch(node->wrapper_str[i - 1]) {
+        case 'a':
+            if (used_len + 2 > script_len || used_len + 2 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
 
-    script[used_len] = OP_CHECKSIG;
-    *write_len = used_len + 1;
-    return WALLY_OK;
-}
+            memmove(script + 1, script, used_len);
+            script[0] = OP_TOALTSTACK;
+            script[used_len + 1] = OP_FROMALTSTACK;
+            *write_len = used_len + 2;
+            break;
 
-static int generate_by_wrapper_t(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
+        case 's':
+            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
 
-    script[used_len] = OP_1;
-    *write_len = used_len + 1;
-    return WALLY_OK;
-}
+            memmove(script + 1, script, used_len);
+            script[0] = OP_SWAP;
+            *write_len = used_len + 1;
+            break;
 
-static int generate_by_wrapper_d(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 3 > script_len) || (used_len + 3 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
+        case 'c':
+            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
 
-    memmove(script + 2, script, used_len);
-    script[0] = OP_DUP;
-    script[1] = OP_IF;
-    script[used_len + 2] = OP_ENDIF;
-    *write_len = used_len + 3;
-    return WALLY_OK;
-}
+            script[used_len] = OP_CHECKSIG;
+            *write_len = used_len + 1;
+            break;
 
-static int generate_by_wrapper_v(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len)
-        return WALLY_EINVAL;
+        case 't':
+            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
 
-    if (script[used_len - 1] == OP_EQUAL) {
-        script[used_len - 1] = OP_EQUALVERIFY;
-    } else if (script[used_len - 1] == OP_NUMEQUAL) {
-        script[used_len - 1] = OP_NUMEQUALVERIFY;
-    } else if (script[used_len - 1] == OP_CHECKSIG) {
-        script[used_len - 1] = OP_CHECKSIGVERIFY;
-    } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
-        script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
-    } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
-        script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
-    } else if (used_len + 1 > script_len) {
-        return WALLY_EINVAL;
-    } else {
-        script[used_len] = OP_VERIFY;
-        *write_len = used_len + 1;
-        if (*write_len > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-            return WALLY_EINVAL;
+            script[used_len] = OP_1;
+            *write_len = used_len + 1;
+            break;
+
+        case 'd':
+            if (used_len + 3 > script_len || used_len + 3 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
+
+            memmove(script + 2, script, used_len);
+            script[0] = OP_DUP;
+            script[1] = OP_IF;
+            script[used_len + 2] = OP_ENDIF;
+            *write_len = used_len + 3;
+            break;
+
+        case 'v':
+
+            if (script[used_len - 1] == OP_EQUAL) {
+                script[used_len - 1] = OP_EQUALVERIFY;
+            } else if (script[used_len - 1] == OP_NUMEQUAL) {
+                script[used_len - 1] = OP_NUMEQUALVERIFY;
+            } else if (script[used_len - 1] == OP_CHECKSIG) {
+                script[used_len - 1] = OP_CHECKSIGVERIFY;
+            } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
+                script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
+            } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
+                script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
+            } else {
+                if (used_len + 1 > script_len)
+                    return WALLY_EINVAL;
+                script[used_len] = OP_VERIFY;
+                *write_len = used_len + 1;
+                if (*write_len > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                    return WALLY_EINVAL;
+            }
+            break;
+
+        case 'j':
+            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
+
+            memmove(script + 3, script, used_len);
+            script[0] = OP_SIZE;
+            script[1] = OP_0NOTEQUAL;
+            script[2] = OP_IF;
+            script[used_len + 3] = OP_ENDIF;
+            *write_len = used_len + 4;
+            break;
+
+        case 'n':
+            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
+
+            script[used_len] = OP_0NOTEQUAL;
+            *write_len = used_len + 1;
+            break;
+
+        case 'l':
+            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
+
+            memmove(script + 3, script, used_len);
+            script[0] = OP_IF;
+            script[1] = OP_0;
+            script[2] = OP_ELSE;
+            script[used_len + 3] = OP_ENDIF;
+            *write_len = used_len + 4;
+            break;
+
+        case 'u':
+            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+                return WALLY_EINVAL;
+
+            memmove(script + 1, script, used_len);
+            script[0] = OP_IF;
+            script[used_len + 1] = OP_ELSE;
+            script[used_len + 2] = OP_0;
+            script[used_len + 3] = OP_ENDIF;
+            *write_len = used_len + 4;
+            break;
+
+        default:
+            return WALLY_EINVAL;     /* Wrapper type not found */
+            break;
+        }
     }
-    return WALLY_OK;
-}
-
-static int generate_by_wrapper_j(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 4 > script_len) || (used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
-
-    memmove(script + 3, script, used_len);
-    script[0] = OP_SIZE;
-    script[1] = OP_0NOTEQUAL;
-    script[2] = OP_IF;
-    script[used_len + 3] = OP_ENDIF;
-    *write_len = used_len + 4;
-    return WALLY_OK;
-}
-
-static int generate_by_wrapper_n(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
-
-    script[used_len] = OP_0NOTEQUAL;
-    *write_len = used_len + 1;
-    return WALLY_OK;
-}
-
-static int generate_by_wrapper_l(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 4 > script_len) || (used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
-
-    memmove(script + 3, script, used_len);
-    script[0] = OP_IF;
-    script[1] = OP_0;
-    script[2] = OP_ELSE;
-    script[used_len + 3] = OP_ENDIF;
-    *write_len = used_len + 4;
-    return WALLY_OK;
-}
-
-static int generate_by_wrapper_u(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
-{
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 4 > script_len) || (used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
-        return WALLY_EINVAL;
-
-    memmove(script + 1, script, used_len);
-    script[0] = OP_IF;
-    script[used_len + 1] = OP_ELSE;
-    script[used_len + 2] = OP_0;
-    script[used_len + 3] = OP_ENDIF;
-    *write_len = used_len + 4;
     return WALLY_OK;
 }
 
@@ -2161,22 +2122,6 @@ static const struct miniscript_item_t miniscript_info_table[] = {
         TYPE_B | PROP_D | PROP_U,
         -1, verify_miniscript_thresh, generate_by_miniscript_thresh
     }
-};
-
-static const struct miniscript_wrapper_item_t {
-    const char *name;
-    wally_miniscript_wrapper_to_script_t generate_function;
-} miniscript_wrapper_table[] = {
-    { "a", generate_by_wrapper_a },
-    { "s", generate_by_wrapper_s },
-    { "c", generate_by_wrapper_c },
-    { "t", generate_by_wrapper_t },
-    { "d", generate_by_wrapper_d },
-    { "v", generate_by_wrapper_v },
-    { "j", generate_by_wrapper_j },
-    { "n", generate_by_wrapper_n },
-    { "l", generate_by_wrapper_l },
-    { "u", generate_by_wrapper_u },
 };
 
 static const struct miniscript_item_t *search_miniscript_info(const char *name, int target)
@@ -2348,34 +2293,16 @@ static int generate_script_from_miniscript(
 {
     int ret;
     size_t output_len = 0;
-    size_t len;
-    size_t index;
-    size_t table_idx;
 
     if (node->info) {
         output_len = *write_len;
         ret = node->info->generate_function(node, parent, child_num, script,
                                             script_len, &output_len);
-        if (ret != WALLY_OK)
-            return ret;
-
-        if (node->wrapper_str[0] != '\0') {
-            /* Iterate from the back of wrapper string to the front, generating */
-            len = strlen(node->wrapper_str);
-            for (index = len; index > 0; --index) {
-                for (table_idx = 0; table_idx < NUM_ELEMS(miniscript_wrapper_table); ++table_idx) {
-                    const struct miniscript_wrapper_item_t *item = miniscript_wrapper_table + table_idx;
-                    if (item->name[0] == node->wrapper_str[index - 1]) {
-                        if ((ret = item->generate_function(script, script_len, &output_len) != WALLY_OK))
-                            return ret; /* Item generate failed */
-                        break;
-                    }
-                }
-                if (table_idx == NUM_ELEMS(miniscript_wrapper_table))
-                    return WALLY_EINVAL; /* Wrapper type not found */
-            }
+        if (ret == WALLY_OK) {
+            ret = generate_miniscript_wrappers(node, script, script_len, &output_len);
+            if (ret == WALLY_OK)
+                *write_len = output_len;
         }
-        *write_len = output_len;
         return ret;
     }
 
