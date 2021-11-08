@@ -148,7 +148,6 @@ struct miniscript_item_t {
 struct miniscript_node_t {
     const struct miniscript_item_t *info;
     struct miniscript_node_t *next;
-    struct miniscript_node_t *back;
     struct miniscript_node_t *child;
     struct miniscript_node_t *parent;
     unsigned int chain_count;
@@ -2899,7 +2898,6 @@ static int analyze_miniscript(
             parent_node->child = node;
         if (prev_node) {
             node->chain_count = prev_node->chain_count + 1;
-            node->back = prev_node;
             prev_node->next = node;
         } else {
             node->chain_count = 1;
