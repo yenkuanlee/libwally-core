@@ -3117,36 +3117,23 @@ static int descriptor_scriptpubkey_to_address(
     return ret;
 }
 
-int wally_descriptor_parse_miniscript(
-    const char *miniscript,
-    const struct wally_map *vars_in,
-    uint32_t child_num,
-    uint32_t flags,
-    unsigned char *bytes_out,
-    size_t len,
-    size_t *written)
+int wally_descriptor_parse_miniscript(const char *miniscript, const struct wally_map *vars_in,
+                                      uint32_t child_num, uint32_t flags,
+                                      unsigned char *bytes_out, size_t len, size_t *written)
 {
-    int ret;
     struct wally_descriptor_script_item script_item = { bytes_out, len, child_num };
+    int ret;
 
     if (written)
         *written = 0;
 
-    if (!bytes_out || !written || !len)
+    if (!miniscript || !bytes_out || !len || !written)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(
-        miniscript,
-        vars_in,
-        flags,
-        DESCRIPTOR_KIND_MINISCRIPT,
-        NULL,
-        0,
-        0,
-        &script_item,
-        1,
-        NULL,
-        NULL);
+    ret = parse_miniscript(miniscript, vars_in, flags,
+                           DESCRIPTOR_KIND_MINISCRIPT,
+                           NULL, 0, 0,
+                           &script_item, 1, NULL, NULL);
     if (ret == WALLY_OK)
         *written = script_item.script_len;
     return ret;
