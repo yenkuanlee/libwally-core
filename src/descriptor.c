@@ -159,7 +159,7 @@ struct miniscript_node_t {
     char *derive_path;
     uint32_t data_size;
     uint32_t derive_path_len;
-    uint32_t network_type;
+    unsigned char network_type;
     bool is_uncompress_key;
     bool is_xonly_key;
 };
