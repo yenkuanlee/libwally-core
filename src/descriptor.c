@@ -3152,42 +3152,25 @@ int wally_descriptor_parse_miniscript(
     return ret;
 }
 
-int wally_descriptor_to_scriptpubkey(
-    const char *descriptor,
-    const struct wally_map *vars_in,
-    uint32_t child_num,
-    uint32_t network,
-    uint32_t target_depth,
-    uint32_t target_index,
-    uint32_t flags,
-    unsigned char *bytes_out,
-    size_t len,
-    size_t *written)
+int wally_descriptor_to_scriptpubkey(const char *descriptor, const struct wally_map *vars_in,
+                                     uint32_t child_num, uint32_t network,
+                                     uint32_t target_depth, uint32_t target_index, uint32_t flags,
+                                     unsigned char *bytes_out, size_t len, size_t *written)
 {
-    int ret;
-    const struct address_script_t *addr_item;
+    const struct address_script_t *addr_item = netaddr_from_network(network);
     struct wally_descriptor_script_item script_item = { bytes_out, len, child_num };
+    int ret;
 
     if (written)
         *written = 0;
 
-    if (!bytes_out || !written || !len)
+    if (!descriptor || !bytes_out || !len || !written)
         return WALLY_EINVAL;
 
-    addr_item = netaddr_from_network(network);
-
-    ret = parse_miniscript(
-        descriptor,
-        vars_in,
-        flags,
-        DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
-        addr_item ? &network : NULL,
-        target_depth,
-        target_index,
-        &script_item,
-        1,
-        NULL,
-        NULL);
+    ret = parse_miniscript(descriptor, vars_in, flags,
+                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+                           addr_item ? &network : NULL, target_depth, target_index,
+                           &script_item, 1, NULL, NULL);
     if (ret == WALLY_OK)
         *written = script_item.script_len;
     return ret;
