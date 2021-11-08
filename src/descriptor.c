@@ -158,10 +158,8 @@ struct miniscript_node_t {
     int64_t number;
     char *data;
     char *derive_path;
-    char *key_origin_info;
     uint32_t data_size;
     uint32_t derive_path_len;
-    uint32_t key_origin_info_len;
     uint32_t network_type;
     bool is_derive;
     bool is_uncompress_key;
@@ -346,7 +344,6 @@ static void free_miniscript_node(struct miniscript_node_t *node)
 
     clear_and_free(node->data, node->data_size);
     clear_and_free(node->derive_path, node->derive_path_len);
-    clear_and_free(node->key_origin_info, node->key_origin_info_len);
     clear_and_free(node, sizeof(*node));
 }
 
@@ -2571,12 +2568,6 @@ static int analyze_miniscript_key(
             return WALLY_EINVAL;
 
         size = (int)(buf - node->data + 1);
-        if (!(node->key_origin_info = wally_malloc(size + 1)))
-            return WALLY_ENOMEM;
-
-        memcpy(node->key_origin_info, node->data, size);
-        node->key_origin_info[size] = '\0';
-        node->key_origin_info_len = size;
         /* cut parent path */
         memmove(node->data, buf + 1, str_len - size);
         str_len = str_len - size;
