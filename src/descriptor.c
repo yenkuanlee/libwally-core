@@ -1885,13 +1885,15 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
     if (!*write_len)
         return WALLY_EINVAL; /* Nothing to wrap */
 
-    /* Validate the nodes wrappers in reserve order */
+#define WRAP_REQUIRE(req) \
+    if (*write_len + (req) > script_len || *write_len + (req) > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE) \
+        return WALLY_EINVAL
+
+    /* Generate the nodes wrappers in reserve order */
     for (i = strlen(node->wrapper_str); i != 0; --i) {
         switch(node->wrapper_str[i - 1]) {
         case 'a':
-            if (*write_len + 2 > script_len || *write_len + 2 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(2);
             memmove(script + 1, script, *write_len);
             script[0] = OP_TOALTSTACK;
             script[*write_len + 1] = OP_FROMALTSTACK;
@@ -1899,34 +1901,26 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
             break;
 
         case 's':
-            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(1);
             memmove(script + 1, script, *write_len);
             script[0] = OP_SWAP;
             *write_len += 1;
             break;
 
         case 'c':
-            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(1);
             script[*write_len] = OP_CHECKSIG;
             *write_len += 1;
             break;
 
         case 't':
-            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(1);
             script[*write_len] = OP_1;
             *write_len += 1;
             break;
 
         case 'd':
-            if (*write_len + 3 > script_len || *write_len + 3 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(3);
             memmove(script + 2, script, *write_len);
             script[0] = OP_DUP;
             script[1] = OP_IF;
@@ -1935,7 +1929,6 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
             break;
 
         case 'v':
-
             if (script[*write_len - 1] == OP_EQUAL) {
                 script[*write_len - 1] = OP_EQUALVERIFY;
             } else if (script[*write_len - 1] == OP_NUMEQUAL) {
@@ -1947,19 +1940,14 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
             } else if (script[*write_len - 1] == OP_CHECKMULTISIG) {
                 script[*write_len - 1] = OP_CHECKMULTISIGVERIFY;
             } else {
-                if (*write_len + 1 > script_len)
-                    return WALLY_EINVAL;
+                WRAP_REQUIRE(1);
                 script[*write_len] = OP_VERIFY;
                 *write_len += 1;
-                if (*write_len > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                    return WALLY_EINVAL;
             }
             break;
 
         case 'j':
-            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(4);
             memmove(script + 3, script, *write_len);
             script[0] = OP_SIZE;
             script[1] = OP_0NOTEQUAL;
@@ -1969,17 +1957,13 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
             break;
 
         case 'n':
-            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(1);
             script[*write_len] = OP_0NOTEQUAL;
             *write_len += 1;
             break;
 
         case 'l':
-            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(4);
             memmove(script + 3, script, *write_len);
             script[0] = OP_IF;
             script[1] = OP_0;
@@ -1989,9 +1973,7 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
             break;
 
         case 'u':
-            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
-                return WALLY_EINVAL;
-
+            WRAP_REQUIRE(4);
             memmove(script + 1, script, *write_len);
             script[0] = OP_IF;
             script[*write_len + 1] = OP_ELSE;
