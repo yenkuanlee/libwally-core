@@ -2,6 +2,7 @@
 
 #include "ccan/ccan/crypto/ripemd160/ripemd160.h"
 #include "ccan/ccan/crypto/sha256/sha256.h"
+#include "script.h"
 #include "script_int.h"
 
 #include <include/wally_address.h>
@@ -2209,34 +2210,23 @@ static int generate_script_from_number(
     struct miniscript_node_t *parent,
     unsigned char *script,
     size_t script_len,
-    size_t *write_len)
+    size_t *written)
 {
-    int ret = WALLY_OK;
-    if (parent && !parent->info)
+    if ((parent && !parent->info) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
         return WALLY_EINVAL;
 
-    if (script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
-        return WALLY_EINVAL;
-
-    if (number == 0) {
-        script[0] = 0;
-        *write_len = 1;
-    } else if (number == -1) {
+    if (number == -1) {
         script[0] = OP_1NEGATE;
-        *write_len = 1;
-    } else if (number > 0 && number <= 16) {
-        script[0] = OP_1 + number - 1;
-        *write_len = 1;
+        *written = 1;
+    } else if (number >= 0 && number <= 16) {
+        script[0] = value_to_op_n(number);
+        *written = 1;
     } else {
-        unsigned char number_bytes[DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH];
-        size_t output_len = scriptint_to_bytes(number, number_bytes);
-        if (!output_len)
-            return WALLY_EINVAL;
-
-        ret = wally_script_push_from_bytes(number_bytes, output_len, 0,
-                                           script, script_len, write_len);
+        /* PUSH <number> */
+        script[0] = scriptint_to_bytes(number, script + 1);
+        *written = script[0] + 1;
     }
-    return ret;
+    return WALLY_OK;
 }
 
 static int generate_script_from_miniscript(
