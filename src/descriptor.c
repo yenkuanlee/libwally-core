@@ -1091,12 +1091,11 @@ static int generate_by_descriptor_wsh(
 
 static int generate_checksig(unsigned char *script, size_t script_len, size_t *write_len)
 {
-    size_t used_len = *write_len;
-    if (!used_len || (used_len + 1 > script_len) || (used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
+    if (!*write_len || (*write_len + 1 > script_len) || (*write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE))
         return WALLY_EINVAL;
 
-    script[used_len] = OP_CHECKSIG;
-    *write_len = used_len + 1;
+    script[*write_len] = OP_CHECKSIG;
+    *write_len += 1;
     return WALLY_OK;
 }
 
@@ -1888,119 +1887,117 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
 
     /* Validate the nodes wrappers in reserve order */
     for (i = strlen(node->wrapper_str); i != 0; --i) {
-        size_t used_len = *write_len;
-
         switch(node->wrapper_str[i - 1]) {
         case 'a':
-            if (used_len + 2 > script_len || used_len + 2 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 2 > script_len || *write_len + 2 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 1, script, used_len);
+            memmove(script + 1, script, *write_len);
             script[0] = OP_TOALTSTACK;
-            script[used_len + 1] = OP_FROMALTSTACK;
-            *write_len = used_len + 2;
+            script[*write_len + 1] = OP_FROMALTSTACK;
+            *write_len += 2;
             break;
 
         case 's':
-            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 1, script, used_len);
+            memmove(script + 1, script, *write_len);
             script[0] = OP_SWAP;
-            *write_len = used_len + 1;
+            *write_len += 1;
             break;
 
         case 'c':
-            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            script[used_len] = OP_CHECKSIG;
-            *write_len = used_len + 1;
+            script[*write_len] = OP_CHECKSIG;
+            *write_len += 1;
             break;
 
         case 't':
-            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            script[used_len] = OP_1;
-            *write_len = used_len + 1;
+            script[*write_len] = OP_1;
+            *write_len += 1;
             break;
 
         case 'd':
-            if (used_len + 3 > script_len || used_len + 3 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 3 > script_len || *write_len + 3 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 2, script, used_len);
+            memmove(script + 2, script, *write_len);
             script[0] = OP_DUP;
             script[1] = OP_IF;
-            script[used_len + 2] = OP_ENDIF;
-            *write_len = used_len + 3;
+            script[*write_len + 2] = OP_ENDIF;
+            *write_len += 3;
             break;
 
         case 'v':
 
-            if (script[used_len - 1] == OP_EQUAL) {
-                script[used_len - 1] = OP_EQUALVERIFY;
-            } else if (script[used_len - 1] == OP_NUMEQUAL) {
-                script[used_len - 1] = OP_NUMEQUALVERIFY;
-            } else if (script[used_len - 1] == OP_CHECKSIG) {
-                script[used_len - 1] = OP_CHECKSIGVERIFY;
-            } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
-                script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
-            } else if (script[used_len - 1] == OP_CHECKMULTISIG) {
-                script[used_len - 1] = OP_CHECKMULTISIGVERIFY;
+            if (script[*write_len - 1] == OP_EQUAL) {
+                script[*write_len - 1] = OP_EQUALVERIFY;
+            } else if (script[*write_len - 1] == OP_NUMEQUAL) {
+                script[*write_len - 1] = OP_NUMEQUALVERIFY;
+            } else if (script[*write_len - 1] == OP_CHECKSIG) {
+                script[*write_len - 1] = OP_CHECKSIGVERIFY;
+            } else if (script[*write_len - 1] == OP_CHECKMULTISIG) {
+                script[*write_len - 1] = OP_CHECKMULTISIGVERIFY;
+            } else if (script[*write_len - 1] == OP_CHECKMULTISIG) {
+                script[*write_len - 1] = OP_CHECKMULTISIGVERIFY;
             } else {
-                if (used_len + 1 > script_len)
+                if (*write_len + 1 > script_len)
                     return WALLY_EINVAL;
-                script[used_len] = OP_VERIFY;
-                *write_len = used_len + 1;
+                script[*write_len] = OP_VERIFY;
+                *write_len += 1;
                 if (*write_len > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                     return WALLY_EINVAL;
             }
             break;
 
         case 'j':
-            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 3, script, used_len);
+            memmove(script + 3, script, *write_len);
             script[0] = OP_SIZE;
             script[1] = OP_0NOTEQUAL;
             script[2] = OP_IF;
-            script[used_len + 3] = OP_ENDIF;
-            *write_len = used_len + 4;
+            script[*write_len + 3] = OP_ENDIF;
+            *write_len += 4;
             break;
 
         case 'n':
-            if (used_len + 1 > script_len || used_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 1 > script_len || *write_len + 1 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            script[used_len] = OP_0NOTEQUAL;
-            *write_len = used_len + 1;
+            script[*write_len] = OP_0NOTEQUAL;
+            *write_len += 1;
             break;
 
         case 'l':
-            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 3, script, used_len);
+            memmove(script + 3, script, *write_len);
             script[0] = OP_IF;
             script[1] = OP_0;
             script[2] = OP_ELSE;
-            script[used_len + 3] = OP_ENDIF;
-            *write_len = used_len + 4;
+            script[*write_len + 3] = OP_ENDIF;
+            *write_len += 4;
             break;
 
         case 'u':
-            if (used_len + 4 > script_len || used_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
+            if (*write_len + 4 > script_len || *write_len + 4 > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE)
                 return WALLY_EINVAL;
 
-            memmove(script + 1, script, used_len);
+            memmove(script + 1, script, *write_len);
             script[0] = OP_IF;
-            script[used_len + 1] = OP_ELSE;
-            script[used_len + 2] = OP_0;
-            script[used_len + 3] = OP_ENDIF;
-            *write_len = used_len + 4;
+            script[*write_len + 1] = OP_ELSE;
+            script[*write_len + 2] = OP_0;
+            script[*write_len + 3] = OP_ENDIF;
+            *write_len += 4;
             break;
 
         default:
