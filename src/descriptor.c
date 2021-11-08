@@ -3234,7 +3234,7 @@ int wally_descriptor_create_checksum(const char *descriptor,
     if (output)
         *output = NULL;
 
-    if (!descriptor || !output || flags)
+    if (!descriptor || !output)
         return WALLY_EINVAL;
 
     ret = parse_miniscript(descriptor, vars_in, flags,
