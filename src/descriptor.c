@@ -2278,8 +2278,6 @@ static int generate_script_from_miniscript(
                     return WALLY_EINVAL;
                 node->network_type = WALLY_NETWORK_BITCOIN_TESTNET;
             }
-        }
-        if (ret == WALLY_OK) {
             if (output_len == EC_PRIVATE_KEY_LEN + 2 && privkey[EC_PRIVATE_KEY_LEN + 1] == 1) {
                 if (node->is_xonly_key) {
                     memcpy(script, &pubkey[1], EC_PUBLIC_KEY_XONLY_LEN);
