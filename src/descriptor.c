@@ -160,7 +160,6 @@ struct miniscript_node_t {
     uint32_t data_size;
     uint32_t derive_path_len;
     uint32_t network_type;
-    bool is_derive;
     bool is_uncompress_key;
     bool is_xonly_key;
 };
@@ -2602,8 +2601,6 @@ static int analyze_miniscript_key(
         node->derive_path_len = (uint32_t)strlen(node->derive_path);
         *buf = '\0';
         str_len = strlen(node->data);
-        if (strchr(node->derive_path, '*'))
-            node->is_derive = true;
     }
 
     if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
