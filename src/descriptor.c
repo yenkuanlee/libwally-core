@@ -1875,109 +1875,95 @@ static int generate_by_miniscript_thresh(
 }
 
 static int generate_miniscript_wrappers(struct miniscript_node_t *node,
-                                        unsigned char *script, size_t script_len, size_t *write_len)
+                                        unsigned char *script, size_t script_len, size_t *written)
 {
     size_t i;
 
     if (node->wrapper_str[0] == '\0')
         return WALLY_OK; /* No wrappers */
 
-    if (!*write_len)
+    if (!*written)
         return WALLY_EINVAL; /* Nothing to wrap */
 
-#define WRAP_REQUIRE(req) used = (req); \
-    if (*write_len + used > script_len || *write_len + used > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE) \
-        return WALLY_EINVAL
+#define WRAP_REQUIRE(req, move_by) used = (req); \
+    if (*written + used > script_len || *written + used > DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE) \
+        return WALLY_EINVAL; \
+    if (move_by) memmove(script + (move_by), script, *written)
 
     /* Generate the nodes wrappers in reserve order */
     for (i = strlen(node->wrapper_str); i != 0; --i) {
         size_t used = 0;
         switch(node->wrapper_str[i - 1]) {
         case 'a':
-            WRAP_REQUIRE(2);
-            memmove(script + 1, script, *write_len);
+            WRAP_REQUIRE(2, 1);
             script[0] = OP_TOALTSTACK;
-            script[*write_len + 1] = OP_FROMALTSTACK;
+            script[*written + 1] = OP_FROMALTSTACK;
             break;
-
         case 's':
-            WRAP_REQUIRE(1);
-            memmove(script + 1, script, *write_len);
+            WRAP_REQUIRE(1, 1);
             script[0] = OP_SWAP;
             break;
-
         case 'c':
-            WRAP_REQUIRE(1);
-            script[*write_len] = OP_CHECKSIG;
+            WRAP_REQUIRE(1, 0);
+            script[*written] = OP_CHECKSIG;
             break;
-
         case 't':
-            WRAP_REQUIRE(1);
-            script[*write_len] = OP_1;
+            WRAP_REQUIRE(1, 0);
+            script[*written] = OP_1;
             break;
-
         case 'd':
-            WRAP_REQUIRE(3);
-            memmove(script + 2, script, *write_len);
+            WRAP_REQUIRE(3, 2);
             script[0] = OP_DUP;
             script[1] = OP_IF;
-            script[*write_len + 2] = OP_ENDIF;
+            script[*written + 2] = OP_ENDIF;
             break;
-
-        case 'v':
-            if (script[*write_len - 1] == OP_EQUAL) {
-                script[*write_len - 1] = OP_EQUALVERIFY;
-            } else if (script[*write_len - 1] == OP_NUMEQUAL) {
-                script[*write_len - 1] = OP_NUMEQUALVERIFY;
-            } else if (script[*write_len - 1] == OP_CHECKSIG) {
-                script[*write_len - 1] = OP_CHECKSIGVERIFY;
-            } else if (script[*write_len - 1] == OP_CHECKMULTISIG) {
-                script[*write_len - 1] = OP_CHECKMULTISIGVERIFY;
-            } else if (script[*write_len - 1] == OP_CHECKMULTISIG) {
-                script[*write_len - 1] = OP_CHECKMULTISIGVERIFY;
-            } else {
-                WRAP_REQUIRE(1);
-                script[*write_len] = OP_VERIFY;
+        case 'v': {
+            unsigned char *last = script + *written - 1;
+            if (*last == OP_EQUAL)
+                *last = OP_EQUALVERIFY;
+            else if (*last == OP_NUMEQUAL)
+                *last = OP_NUMEQUALVERIFY;
+            else if (*last == OP_CHECKSIG)
+                *last = OP_CHECKSIGVERIFY;
+            else if (*last == OP_CHECKMULTISIG)
+                *last = OP_CHECKMULTISIGVERIFY;
+            else if (*last == OP_CHECKMULTISIG)
+                *last = OP_CHECKMULTISIGVERIFY;
+            else {
+                WRAP_REQUIRE(1, 0);
+                script[*written] = OP_VERIFY;
             }
             break;
-
+        }
         case 'j':
-            WRAP_REQUIRE(4);
-            memmove(script + 3, script, *write_len);
+            WRAP_REQUIRE(4, 3);
             script[0] = OP_SIZE;
             script[1] = OP_0NOTEQUAL;
             script[2] = OP_IF;
-            script[*write_len + 3] = OP_ENDIF;
+            script[*written + 3] = OP_ENDIF;
             break;
-
         case 'n':
-            WRAP_REQUIRE(1);
-            script[*write_len] = OP_0NOTEQUAL;
+            WRAP_REQUIRE(1, 0);
+            script[*written] = OP_0NOTEQUAL;
             break;
-
         case 'l':
-            WRAP_REQUIRE(4);
-            memmove(script + 3, script, *write_len);
+            WRAP_REQUIRE(4, 3);
             script[0] = OP_IF;
             script[1] = OP_0;
             script[2] = OP_ELSE;
-            script[*write_len + 3] = OP_ENDIF;
+            script[*written + 3] = OP_ENDIF;
             break;
-
         case 'u':
-            WRAP_REQUIRE(4);
-            memmove(script + 1, script, *write_len);
+            WRAP_REQUIRE(4, 1);
             script[0] = OP_IF;
-            script[*write_len + 1] = OP_ELSE;
-            script[*write_len + 2] = OP_0;
-            script[*write_len + 3] = OP_ENDIF;
+            script[*written + 1] = OP_ELSE;
+            script[*written + 2] = OP_0;
+            script[*written + 3] = OP_ENDIF;
             break;
-
         default:
-            return WALLY_EINVAL;     /* Wrapper type not found */
-            break;
+            return WALLY_ERROR; /* Wrapper type not found, should not happen */
         }
-        *write_len += used;
+        *written += used;
     }
     return WALLY_OK;
 }
