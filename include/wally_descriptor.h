@@ -10,8 +10,6 @@ extern "C" {
 
 struct wally_map;
 
-#define WALLY_NETWORK_BITCOIN_REGTEST 0xff  /** Bitcoin regtest */
-
 /* Miniscript type flag */
 #define WALLY_MINISCRIPT_WITNESS_SCRIPT  0x00
 #define WALLY_MINISCRIPT_TAPSCRIPT       0x01
