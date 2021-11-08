@@ -2944,7 +2944,7 @@ static int convert_script_from_node(
     size_t *write_len)
 {
     int ret;
-    char *buf;
+    unsigned char *buf;
     size_t output_len = 0;
     struct miniscript_node_t *target_node = top_node;
     uint32_t count;
@@ -2966,7 +2966,7 @@ static int convert_script_from_node(
     ret = generate_script_from_miniscript(target_node,
                                           NULL,
                                           child_num,
-                                          (unsigned char *)buf,
+                                          buf,
                                           DESCRIPTOR_LIMIT_LENGTH,
                                           &output_len);
     if (ret == WALLY_OK) {
