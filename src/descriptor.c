@@ -2517,6 +2517,32 @@ static int analyze_miniscript_addr(
     return ret;
 }
 
+static bool analyze_pubkey_hex(const char *str, size_t str_len,
+                               uint32_t flags, struct miniscript_node_t *node)
+{
+    unsigned char pubkey[EC_PUBLIC_KEY_UNCOMPRESSED_LEN + 1];
+    size_t offset = flags & WALLY_MINISCRIPT_TAPSCRIPT ? 1 : 0;
+    size_t written;
+
+    if (offset) {
+        if (str_len != EC_PUBLIC_KEY_XONLY_LEN * 2)
+            return false; /* Only X-only pubkeys allowed under tapscript */
+        pubkey[0] = 2; /* Non-X-only pubkey prefix, for validation below */
+    } else {
+        if (str_len != EC_PUBLIC_KEY_LEN * 2 && str_len != EC_PUBLIC_KEY_UNCOMPRESSED_LEN * 2)
+            return false; /* Unknown public key size */
+    }
+
+    if (wally_hex_to_bytes(str, pubkey + offset, sizeof(pubkey) - offset, &written) != WALLY_OK ||
+        wally_ec_public_key_verify(pubkey, written + offset) != WALLY_OK)
+        return false;
+
+    node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
+    node->is_uncompress_key = str_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN * 2;
+    node->is_xonly_key = str_len == EC_PUBLIC_KEY_XONLY_LEN * 2;
+    return true;
+}
+
 static int analyze_miniscript_key(
     const struct address_script_t *addr_item,
     uint32_t flags,
@@ -2528,7 +2554,6 @@ static int analyze_miniscript_key(
     size_t buf_len;
     char *buf = NULL;
     int size;
-    unsigned char pubkey[EC_PUBLIC_KEY_UNCOMPRESSED_LEN];
     unsigned char privkey_bytes[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
     unsigned char bip32_serialized[BIP32_SERIALIZED_LEN + BASE58_CHECKSUM_LEN];
     struct ext_key extkey;
@@ -2559,26 +2584,8 @@ static int analyze_miniscript_key(
     }
 
     /* check key (public key) */
-    if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) == 0 &&
-        (str_len == EC_PUBLIC_KEY_LEN * 2 || str_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN * 2)) {
-        ret = wally_hex_to_bytes(node->data, pubkey, sizeof(pubkey), &buf_len);
-        if (ret == WALLY_OK) {
-            node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
-            if (str_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN * 2)
-                node->is_uncompress_key = true;
-            return wally_ec_public_key_verify(pubkey, buf_len);
-        }
-    }
-    else if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0 && str_len == EC_PUBLIC_KEY_XONLY_LEN * 2) {
-        ret = wally_hex_to_bytes(node->data, pubkey, sizeof(pubkey), &buf_len);
-        if (ret == WALLY_OK) {
-            node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
-            node->is_xonly_key = true;
-            memmove(pubkey + 1, pubkey, buf_len);
-            pubkey[0] = 2;
-            return wally_ec_public_key_verify(pubkey, buf_len + 1);
-        }
-    }
+    if (analyze_pubkey_hex(node->data, str_len, flags, node))
+        return WALLY_OK;
 
     /* check key (private key(wif)) */
     ret = wally_base58_to_bytes(node->data, BASE58_FLAG_CHECKSUM, privkey_bytes,
