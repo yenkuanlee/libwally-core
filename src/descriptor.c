@@ -146,7 +146,6 @@ struct miniscript_item_t {
 };
 
 struct miniscript_node_t {
-    const struct miniscript_item_t *info;
     struct miniscript_node_t *next;
     struct miniscript_node_t *child;
     struct miniscript_node_t *parent;
@@ -159,6 +158,7 @@ struct miniscript_node_t {
     char *derive_path;
     uint32_t data_size;
     uint32_t derive_path_len;
+    unsigned char info_idx;
     unsigned char network_type;
     bool is_uncompress_key;
     bool is_xonly_key;
@@ -269,6 +269,7 @@ static const struct address_script_t *netaddr_from_addr_family(const char *addr_
 }
 
 /* Function prototype */
+static const struct miniscript_item_t *node_get_info(const struct miniscript_node_t *node);
 static int analyze_miniscript_addr(
     const char *message,
     struct miniscript_node_t *node,
@@ -388,7 +389,7 @@ static int check_type_properties(uint32_t property)
 
 static int verify_descriptor_sh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
-    if (parent || (get_child_list_count(node) != node->info->inner_num) || !node->child->info)
+    if (parent || (get_child_list_count(node) != node_get_info(node)->inner_num) || !node->child->info_idx)
         return WALLY_EINVAL;
 
     node->type_properties = node->child->type_properties;
@@ -411,9 +412,9 @@ static bool has_uncompressed_key_by_child(struct miniscript_node_t *node)
 
 static int verify_descriptor_wsh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
-    if (parent && (!parent->info || (parent->info->kind != DESCRIPTOR_KIND_DESCRIPTOR_SH)))
+    if (parent && (!parent->info_idx || (node_get_info(parent)->kind != DESCRIPTOR_KIND_DESCRIPTOR_SH)))
         return WALLY_EINVAL;
-    if (get_child_list_count(node) != node->info->inner_num || !node->child->info)
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || !node->child->info_idx)
         return WALLY_EINVAL;
     if (has_uncompressed_key_by_child(node))
         return WALLY_EINVAL;
@@ -425,11 +426,11 @@ static int verify_descriptor_wsh(struct miniscript_node_t *node, struct miniscri
 static int verify_descriptor_pk(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num || node->child->info ||
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
         return WALLY_EINVAL;
 
-    node->type_properties = node->info->type_properties;
+    node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
 }
 
@@ -441,9 +442,9 @@ static int verify_descriptor_pkh(struct miniscript_node_t *node, struct miniscri
 static int verify_descriptor_wpkh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     struct miniscript_node_t *parent_item = parent;
-    if (parent && (!parent->info || (parent->info->kind & DESCRIPTOR_KIND_MINISCRIPT)))
+    if (parent && (!parent->info_idx || (node_get_info(parent)->kind & DESCRIPTOR_KIND_MINISCRIPT)))
         return WALLY_EINVAL;
-    if (get_child_list_count(node) != node->info->inner_num || node->child->info ||
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
         return WALLY_EINVAL;
 
@@ -485,19 +486,19 @@ static int verify_descriptor_multi(struct miniscript_node_t *node, struct minisc
 
     top = node->child;
     require_num = (uint32_t) top->number;
-    if (!top->next || top->info || (top->kind != DESCRIPTOR_KIND_NUMBER) ||
-        (top->number <= 0) || (count < require_num))
+    if (!top->next || top->info_idx || top->kind != DESCRIPTOR_KIND_NUMBER ||
+        top->number <= 0 || count < require_num)
         return WALLY_EINVAL;
 
     key = top->next;
     while (key) {
-        if (key->info || !(key->kind & DESCRIPTOR_KIND_KEY))
+        if (key->info_idx || !(key->kind & DESCRIPTOR_KIND_KEY))
             return WALLY_EINVAL;
 
         key = key->next;
     }
 
-    node->type_properties = node->info->type_properties;
+    node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
 }
 
@@ -508,7 +509,7 @@ static int verify_descriptor_sortedmulti(struct miniscript_node_t *node, struct 
 
 static int verify_descriptor_addr(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
-    if (parent || (get_child_list_count(node) != node->info->inner_num) || node->child->info ||
+    if (parent || (get_child_list_count(node) != node_get_info(node)->inner_num) || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_ADDRESS) != DESCRIPTOR_KIND_ADDRESS)
         return WALLY_EINVAL;
 
@@ -517,7 +518,7 @@ static int verify_descriptor_addr(struct miniscript_node_t *node, struct miniscr
 
 static int verify_descriptor_raw(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
-    if (parent || (get_child_list_count(node) != node->info->inner_num) || node->child->info ||
+    if (parent || (get_child_list_count(node) != node_get_info(node)->inner_num) || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_RAW) == 0)
         return WALLY_EINVAL;
 
@@ -527,11 +528,11 @@ static int verify_descriptor_raw(struct miniscript_node_t *node, struct miniscri
 static int verify_miniscript_pkh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num || node->child->info ||
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
         return WALLY_EINVAL;
 
-    node->type_properties = node->info->type_properties;
+    node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
 }
 
@@ -543,12 +544,12 @@ static int verify_miniscript_pk(struct miniscript_node_t *node, struct miniscrip
 static int verify_miniscript_older(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num || node->child->info ||
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || node->child->info_idx ||
         node->child->kind != DESCRIPTOR_KIND_NUMBER ||
         node->child->number <= 0 || node->child->number > 0x7fffffff)
         return WALLY_EINVAL;
 
-    node->type_properties = node->info->type_properties;
+    node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
 }
 
@@ -560,11 +561,11 @@ static int verify_miniscript_after(struct miniscript_node_t *node, struct minisc
 static int verify_miniscript_hash_type(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num || node->child->info ||
+    if (get_child_list_count(node) != node_get_info(node)->inner_num || node->child->info_idx ||
         (node->child->kind & DESCRIPTOR_KIND_RAW) == 0)
         return WALLY_EINVAL;
 
-    node->type_properties = node->info->type_properties;
+    node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
 }
 
@@ -619,7 +620,7 @@ static uint32_t verify_miniscript_andor_property(uint32_t x_property, uint32_t y
 static int verify_miniscript_andor(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num)
+    if (get_child_list_count(node) != node_get_info(node)->inner_num)
         return WALLY_EINVAL;
 
     node->type_properties = verify_miniscript_andor_property(
@@ -635,7 +636,7 @@ static int verify_miniscript_andor(struct miniscript_node_t *node, struct minisc
 static int verify_miniscript_two_param_check(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     (void)parent;
-    if (get_child_list_count(node) != node->info->inner_num)
+    if (get_child_list_count(node) != node_get_info(node)->inner_num)
         return WALLY_EINVAL;
 
     return WALLY_OK;
@@ -831,7 +832,7 @@ static int verify_miniscript_thresh(struct miniscript_node_t *node, struct minis
         return WALLY_EINVAL;
 
     top = node->child;
-    if (top->info || (top->kind != DESCRIPTOR_KIND_NUMBER) || (top->number < 0))
+    if (top->info_idx || (top->kind != DESCRIPTOR_KIND_NUMBER) || (top->number < 0))
         return WALLY_EINVAL;
 
     k = (uint32_t) top->number;
@@ -840,7 +841,7 @@ static int verify_miniscript_thresh(struct miniscript_node_t *node, struct minis
 
     child = top->next;
     while (child) {
-        if (!child->info)
+        if (!child->info_idx)
             return WALLY_EINVAL;
 
         if (!count) {
@@ -966,7 +967,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
 static int generate_script_from_number(int64_t number, struct miniscript_node_t *parent,
                                        unsigned char *script, size_t script_len, size_t *written)
 {
-    if ((parent && !parent->info) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
+    if ((parent && !parent->info_idx) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
         return WALLY_EINVAL;
 
     if (number == -1) {
@@ -993,7 +994,7 @@ static int generate_by_miniscript_pk_k(
 {
     int ret;
 
-    if (!node->child || (script_len < EC_PUBLIC_KEY_LEN * 2) || (parent && !parent->info))
+    if (!node->child || script_len < EC_PUBLIC_KEY_LEN * 2 || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(node->child, node, child_num, &script[1], script_len - 1, write_len);
@@ -1020,7 +1021,7 @@ static int generate_by_miniscript_pk_h(
     size_t child_write_len = *write_len;
     unsigned char pubkey[EC_PUBLIC_KEY_UNCOMPRESSED_LEN];
 
-    if (!node->child || (script_len < WALLY_SCRIPTPUBKEY_P2PKH_LEN - 1) || (parent && !parent->info))
+    if (!node->child || script_len < WALLY_SCRIPTPUBKEY_P2PKH_LEN - 1 || (parent && !parent->info_idx))
         return WALLY_EINVAL;
     if (node->child->is_xonly_key)
         return WALLY_EINVAL;
@@ -1052,7 +1053,7 @@ static int generate_by_descriptor_sh(
     int ret;
     size_t child_write_len = *write_len;
     unsigned char buf[WALLY_SCRIPTPUBKEY_P2SH_LEN];
-    if (!node->child || (script_len < WALLY_SCRIPTPUBKEY_P2SH_LEN) || (parent && !parent->info))
+    if (!node->child || script_len < WALLY_SCRIPTPUBKEY_P2SH_LEN || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
@@ -1081,7 +1082,7 @@ static int generate_by_descriptor_wsh(
     size_t child_write_len = *write_len;
     unsigned char output[WALLY_SCRIPTPUBKEY_P2WSH_LEN];
 
-    if (!node->child || (script_len < sizeof(output)) || (parent && !parent->info))
+    if (!node->child || script_len < sizeof(output) || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
@@ -1149,7 +1150,7 @@ static int generate_by_descriptor_wpkh(
     size_t child_write_len = *write_len;
     unsigned char output[WALLY_SCRIPTPUBKEY_P2WPKH_LEN];
 
-    if (!node->child || (script_len < sizeof(output)) || (parent && !parent->info))
+    if (!node->child || script_len < sizeof(output) || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(node->child, node, child_num, script, script_len, &child_write_len);
@@ -1216,7 +1217,7 @@ static int generate_by_descriptor_multisig(
     struct multisig_sort_data_t *sorted_node_array;
     size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ? script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
 
-    if (!child || (parent && !parent->info))
+    if (!child || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(child, node, child_num, script, script_len, &offset);
@@ -1323,7 +1324,7 @@ static int generate_by_descriptor_addr(
     size_t *write_len)
 {
     int ret;
-    if (!node->child || (script_len == 0) || (parent && !parent->info))
+    if (!node->child || !script_len || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
@@ -1343,7 +1344,7 @@ static int generate_by_descriptor_raw(
     size_t *write_len)
 {
     int ret;
-    if (!node->child || (script_len == 0) || (parent && !parent->info))
+    if (!node->child || !script_len || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
@@ -1364,7 +1365,7 @@ static int generate_by_miniscript_older(
 {
     int ret;
     size_t child_write_len = *write_len;
-    if (!node->child || (script_len < DESCRIPTOR_MIN_SIZE) || (parent && !parent->info))
+    if (!node->child || script_len < DESCRIPTOR_MIN_SIZE || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
@@ -1390,7 +1391,7 @@ static int generate_by_miniscript_after(
 {
     int ret;
     size_t child_write_len = *write_len;
-    if (!node->child || (script_len < DESCRIPTOR_MIN_SIZE) || (parent && !parent->info))
+    if (!node->child || script_len < DESCRIPTOR_MIN_SIZE || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(
@@ -1418,10 +1419,10 @@ static int generate_by_miniscript_crypto(
 {
     int ret;
     size_t child_write_len = *write_len;
-    size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ?
+    size_t check_len = DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len ?
                        script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
 
-    if (!node->child || (script_len < (size_t)(crypto_size + 8)) || (parent && !parent->info))
+    if (!node->child || script_len < (size_t)(crypto_size + 8) || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     ret = generate_script_from_miniscript(node->child, node, child_num,
@@ -1520,7 +1521,7 @@ static int generate_by_miniscript_concat(
     size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ?
                        script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
 
-    if (!node->child || (parent && !parent->info))
+    if (!node->child || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     if (!reference_indexes)
@@ -1834,7 +1835,7 @@ static int generate_by_miniscript_thresh(
     struct miniscript_node_t *child = node->child;
     size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ? script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
 
-    if (!child || (parent && !parent->info))
+    if (!child || (parent && !parent->info_idx))
         return WALLY_EINVAL;
 
     child = child->next;
@@ -2090,22 +2091,21 @@ static const struct miniscript_item_t miniscript_info_table[] = {
     }
 };
 
-static const struct miniscript_item_t *search_miniscript_info(const char *name, int target)
+static unsigned char search_miniscript_info(const char *name, int target)
 {
-    const struct miniscript_item_t *result = NULL;
-    size_t index;
-    size_t max = sizeof(miniscript_info_table) / sizeof(struct miniscript_item_t);
-    size_t name_len = strlen(name) + 1;
+    unsigned char i;
 
-    for (index = 0; index < max; ++index) {
-        if ((miniscript_info_table[index].kind & target) == 0)
-            continue;
-        if (memcmp(name, miniscript_info_table[index].name, name_len) == 0) {
-            result = &miniscript_info_table[index];
-            break;
-        }
+    for (i = 0; i < NUM_ELEMS(miniscript_info_table); ++i) {
+        if ((miniscript_info_table[i].kind & target) &&
+            !strcmp(name, miniscript_info_table[i].name))
+            return i + 1;
     }
-    return result;
+    return 0;
+}
+
+static const struct miniscript_item_t *node_get_info(const struct miniscript_node_t *node)
+{
+    return node->info_idx ? &miniscript_info_table[node->info_idx - 1] : NULL;
 }
 
 static int convert_bip32_path_to_array(
@@ -2225,10 +2225,10 @@ static int generate_script_from_miniscript(
     int ret;
     size_t output_len = 0;
 
-    if (node->info) {
+    if (node->info_idx) {
         output_len = *write_len;
-        ret = node->info->generate_function(node, parent, child_num, script,
-                                            script_len, &output_len);
+        ret = node_get_info(node)->generate_function(node, parent, child_num, script,
+                                                     script_len, &output_len);
         if (ret == WALLY_OK) {
             ret = generate_miniscript_wrappers(node, script, script_len, &output_len);
             if (ret == WALLY_OK)
@@ -2543,7 +2543,7 @@ static int analyze_miniscript_key(
     unsigned char privkey_bytes[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
     struct ext_key extkey;
 
-    if (!node || (parent_node && !parent_node->info))
+    if (!node || (parent_node && !parent_node->info_idx))
         return WALLY_EINVAL;
 
     /*
@@ -2657,13 +2657,13 @@ static int analyze_miniscript_value(
     char *err_ptr = NULL;
     const struct address_script_t *addr_item = NULL;
 
-    if (!node || (parent_node && !parent_node->info) || !message || !message[0])
+    if (!node || (parent_node && !parent_node->info_idx) || !message || !message[0])
         return WALLY_EINVAL;
 
     if (network && !(addr_item = netaddr_from_network(*network)))
         return WALLY_EINVAL; /* Unknown network */
 
-    if (parent_node && (parent_node->info->kind == DESCRIPTOR_KIND_DESCRIPTOR_ADDR))
+    if (parent_node && (node_get_info(parent_node)->kind == DESCRIPTOR_KIND_DESCRIPTOR_ADDR))
         return analyze_miniscript_addr(message, node, parent_node, addr_item, NULL, 0, NULL);
 
     message_len = strlen(message);
@@ -2690,22 +2690,24 @@ static int analyze_miniscript_value(
         node->data_size = message_len;
     }
 
-    if (parent_node &&
-        (parent_node->info->kind == DESCRIPTOR_KIND_DESCRIPTOR_RAW ||
-         parent_node->info->kind == DESCRIPTOR_KIND_MINISCRIPT_SHA256 ||
-         parent_node->info->kind == DESCRIPTOR_KIND_MINISCRIPT_HASH256 ||
-         parent_node->info->kind == DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160 ||
-         parent_node->info->kind == DESCRIPTOR_KIND_MINISCRIPT_HASH160)) {
-        buf = wally_strdup(node->data);
-        if (!buf)
-            return WALLY_ENOMEM;
+    if (parent_node) {
+        int kind = node_get_info(parent_node)->kind;
+        if (kind == DESCRIPTOR_KIND_DESCRIPTOR_RAW ||
+            kind == DESCRIPTOR_KIND_MINISCRIPT_SHA256 ||
+            kind == DESCRIPTOR_KIND_MINISCRIPT_HASH256 ||
+            kind == DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160 ||
+            kind == DESCRIPTOR_KIND_MINISCRIPT_HASH160) {
+            buf = wally_strdup(node->data);
+            if (!buf)
+                return WALLY_ENOMEM;
 
-        ret = wally_hex_to_bytes(node->data, (unsigned char *)buf, message_len, &buf_len);
-        if (ret == WALLY_OK) {
-            node->kind = DESCRIPTOR_KIND_RAW;
+            ret = wally_hex_to_bytes(node->data, (unsigned char *)buf, message_len, &buf_len);
+            if (ret == WALLY_OK) {
+                node->kind = DESCRIPTOR_KIND_RAW;
+            }
+            wally_free_string(buf);
+            return ret;
         }
-        wally_free_string(buf);
-        return ret;
     }
 
     node->number = strtoll(node->data, &err_ptr, 10);
@@ -2757,12 +2759,11 @@ static int analyze_miniscript(
     if (!(node = wally_calloc(sizeof(*node))))
         return WALLY_ENOMEM;
 
-    wally_bzero(buffer, sizeof(buffer));
     if (parent_node)
         node->parent = parent_node;
 
     for (index = 0; index < str_len; ++index) {
-        if (!node->info && (miniscript[index] == ':')) {
+        if (!node->info_idx && miniscript[index] == ':') {
             if (index - offset > sizeof(node->wrapper_str)) {
                 ret = WALLY_EINVAL;
                 break;
@@ -2770,15 +2771,16 @@ static int analyze_miniscript(
             memcpy(node->wrapper_str, &miniscript[offset], index - offset);
             offset = index + 1;
         } else if (miniscript[index] == '(') {
-            if (!node->info && (indent == 0)) {
+            if (!node->info_idx && indent == 0) {
                 collect_child = true;
+                wally_bzero(buffer, sizeof(buffer));
                 memcpy(buffer, &miniscript[offset], index - offset);
-                node->info = search_miniscript_info(buffer, target);
-                if (!node->info) {
+                node->info_idx = search_miniscript_info(buffer, target);
+                if (!node->info_idx) {
                     ret = WALLY_EINVAL;
                     break;
                 } else if (node->wrapper_str[0] != '\0' &&
-                           (node->info->kind & DESCRIPTOR_KIND_MINISCRIPT) == 0) {
+                           (node_get_info(node)->kind & DESCRIPTOR_KIND_MINISCRIPT) == 0) {
                     ret = WALLY_EINVAL;
                     break;
                 }
@@ -2803,7 +2805,7 @@ static int analyze_miniscript(
             }
             exist_indent = true;
         } else if (miniscript[index] == '#') {
-            if (!parent_node && node->info && !collect_child && (indent == 0)) {
+            if (!parent_node && node->info_idx && !collect_child && indent == 0) {
                 checksum_index = index;
                 if (strlen(&miniscript[index + 1]) > DESCRIPTOR_CHECKSUM_LENGTH)
                     ret = WALLY_EINVAL;
@@ -2848,8 +2850,8 @@ static int analyze_miniscript(
                                        node,
                                        parent_node);
 
-    if (ret == WALLY_OK && node->info && node->info->verify_function)
-        ret = node->info->verify_function(node, parent_node);
+    if (ret == WALLY_OK && node->info_idx && node_get_info(node)->verify_function)
+        ret = node_get_info(node)->verify_function(node, parent_node);
 
     if (ret == WALLY_OK && !parent_node && (checksum_index || checksum_out)) {
         /* Checksum is present or has been requested, generate it */
@@ -2972,7 +2974,7 @@ static int parse_miniscript(
     ret = analyze_miniscript(miniscript, vars_in, target, network, flags,
                              NULL, NULL, &top_node, checksum_out);
     if (ret == WALLY_OK && (target & DESCRIPTOR_KIND_DESCRIPTOR) &&
-        (!top_node->info || !(top_node->info->kind & DESCRIPTOR_KIND_DESCRIPTOR)))
+        (!top_node->info_idx || !(node_get_info(top_node)->kind & DESCRIPTOR_KIND_DESCRIPTOR)))
         ret = WALLY_EINVAL;
     if (ret == WALLY_OK && script_item) {
         for (i = 0; i < item_len; ++i) {
