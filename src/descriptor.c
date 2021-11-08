@@ -3066,57 +3066,6 @@ static int parse_miniscript(
     return ret;
 }
 
-static int descriptor_scriptpubkey_to_address(
-    const struct address_script_t *address_item,
-    unsigned char *script,
-    size_t script_len,
-    char **output)
-{
-    int ret;
-    int script_type = 0;
-    size_t hash_len = 0;
-    unsigned char hash[SHA256_LEN + 1];
-
-    if (script_len == WALLY_SCRIPTPUBKEY_P2PKH_LEN &&
-        script[0] == OP_DUP &&
-        script[1] == OP_HASH160 &&
-        script[2] == HASH160_LEN &&
-        script[WALLY_SCRIPTPUBKEY_P2PKH_LEN - 2] == OP_EQUALVERIFY &&
-        script[WALLY_SCRIPTPUBKEY_P2PKH_LEN - 1] == OP_CHECKSIG) {
-        script_type = WALLY_SCRIPT_TYPE_P2PKH;
-        hash[0] = address_item->version_p2pkh;
-        memcpy(&hash[1], &script[3], HASH160_LEN);
-        hash_len = HASH160_LEN + 1;
-    } else if (script_len == WALLY_SCRIPTPUBKEY_P2SH_LEN &&
-               script[0] == OP_HASH160 &&
-               script[1] == HASH160_LEN &&
-               script[WALLY_SCRIPTPUBKEY_P2SH_LEN - 1] == OP_EQUAL) {
-        script_type = WALLY_SCRIPT_TYPE_P2SH;
-        hash[0] = address_item->version_p2sh;
-        memcpy(&hash[1], &script[2], HASH160_LEN);
-        hash_len = HASH160_LEN + 1;
-    } else if (script_len == WALLY_SCRIPTPUBKEY_P2WPKH_LEN &&
-               script[0] == OP_0 && script[1] == HASH160_LEN) {
-        script_type = WALLY_SCRIPT_TYPE_P2WPKH;
-    } else if (script_len == WALLY_SCRIPTPUBKEY_P2WSH_LEN &&
-               script[0] == OP_0 &&
-               script[1] == SHA256_LEN) {
-        script_type = WALLY_SCRIPT_TYPE_P2WSH;
-        /* feature: append witness v1 */
-    } else {
-        ret = WALLY_EINVAL;
-    }
-
-    if (script_type == WALLY_SCRIPT_TYPE_P2PKH || script_type == WALLY_SCRIPT_TYPE_P2SH) {
-        ret = wally_base58_from_bytes(hash, hash_len, BASE58_FLAG_CHECKSUM, output);
-    } else if (script_type == WALLY_SCRIPT_TYPE_P2WPKH ||
-               script_type == WALLY_SCRIPT_TYPE_P2WSH) {
-        const uint32_t flags = 0;
-        ret = wally_addr_segwit_from_bytes(script, script_len, address_item->addr_family, flags, output);
-    }
-    return ret;
-}
-
 int wally_descriptor_parse_miniscript(const char *miniscript, const struct wally_map *vars_in,
                                       uint32_t child_num, uint32_t flags,
                                       unsigned char *bytes_out, size_t len, size_t *written)
@@ -3188,10 +3137,13 @@ int wally_descriptor_to_addresses(const char *descriptor, const struct wally_map
                            DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
                            &network, 0, 0, scripts, num_addresses, NULL, NULL);
 
-    for (i = 0; i < num_addresses && ret == WALLY_OK; ++i)
-        ret = descriptor_scriptpubkey_to_address(addr_item,
-                                                 scripts[i].script, scripts[i].script_len,
-                                                 &addresses[i]);
+    for (i = 0; i < num_addresses && ret == WALLY_OK; ++i) {
+        ret = wally_scriptpubkey_to_address(scripts[i].script, scripts[i].script_len,
+                                            addr_item->network, &addresses[i]);
+        if (ret == WALLY_EINVAL)
+            ret = wally_addr_segwit_from_bytes(scripts[i].script, scripts[i].script_len,
+                                               addr_item->addr_family, 0, &addresses[i]);
+    }
 
     for (i = 0; i < num_addresses; ++i) {
         clear_and_free(scripts[i].script, scripts[i].script_len);
