@@ -2292,22 +2292,13 @@ static int generate_script_from_miniscript(
             }
         }
     } else if ((node->kind & DESCRIPTOR_KIND_BIP32) == DESCRIPTOR_KIND_BIP32) {
-        unsigned char bip32_serialized[BIP32_SERIALIZED_LEN + BASE58_CHECKSUM_LEN];
         struct ext_key extkey;
         struct ext_key derive_extkey;
         uint32_t bip32_array[DESCRIPTOR_BIP32_PATH_NUM_MAX];
         int8_t wildcard_pos = -1;
         uint32_t count = 0;
 
-        ret = wally_base58_to_bytes(node->data, BASE58_FLAG_CHECKSUM,
-                                    bip32_serialized, sizeof(bip32_serialized), &output_len);
-        if (ret != WALLY_OK)
-            return ret;
-        if (output_len > sizeof(bip32_serialized))
-            return WALLY_EINVAL;
-
-        ret = bip32_key_unserialize(bip32_serialized, output_len, &extkey);
-        if (ret != WALLY_OK)
+        if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
             return ret;
 
         if ((node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && extkey.version == BIP32_VER_MAIN_PRIVATE) ||
@@ -2551,7 +2542,6 @@ static int analyze_miniscript_key(
     char *buf = NULL;
     int size;
     unsigned char privkey_bytes[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
-    unsigned char bip32_serialized[BIP32_SERIALIZED_LEN + BASE58_CHECKSUM_LEN];
     struct ext_key extkey;
 
     if (!node || (parent_node && !parent_node->info))
@@ -2616,18 +2606,7 @@ static int analyze_miniscript_key(
             node->is_derive = true;
     }
 
-    ret = wally_base58_to_bytes(node->data,
-                                BASE58_FLAG_CHECKSUM,
-                                bip32_serialized,
-                                sizeof(bip32_serialized),
-                                &buf_len);
-    if (ret != WALLY_OK)
-        return ret;
-    if (buf_len > sizeof(bip32_serialized))
-        return WALLY_EINVAL;
-
-    ret = bip32_key_unserialize(bip32_serialized, buf_len, &extkey);
-    if (ret != WALLY_OK)
+    if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
         return ret;
 
     if (extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE) {
