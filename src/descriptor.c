@@ -2891,13 +2891,15 @@ static int convert_script_from_node(
     uint32_t index,
     unsigned char *script,
     size_t script_len,
-    size_t *write_len)
+    size_t *written)
 {
     int ret;
     unsigned char *buf;
     size_t output_len = 0;
     struct miniscript_node_t *target_node = top_node;
     uint32_t count;
+
+    *written = 0;
 
     for (count = 0; count < depth; ++count) {
         if (!target_node->child)
@@ -2920,14 +2922,12 @@ static int convert_script_from_node(
                                           DESCRIPTOR_LIMIT_LENGTH,
                                           &output_len);
     if (ret == WALLY_OK) {
-        *write_len = output_len;
+        *written = output_len;
         if (output_len > script_len) {
             /* return WALLY_OK, but data is not written. */
         } else {
             memcpy(script, buf, output_len);
         }
-    } else {
-        *write_len = 0;
     }
 
     clear_and_free(buf, DESCRIPTOR_LIMIT_LENGTH);
