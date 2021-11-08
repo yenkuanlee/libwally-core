@@ -290,6 +290,8 @@ WALLY_CORE_API int wally_pbkdf2_hmac_sha512(
 #define EC_PUBLIC_KEY_LEN 33
 /** The length of an uncompressed public key */
 #define EC_PUBLIC_KEY_UNCOMPRESSED_LEN 65
+/** The length of an x-only public key */
+#define EC_PUBLIC_KEY_XONLY_LEN 32
 /** The length of a message hash to EC sign */
 #define EC_MESSAGE_HASH_LEN 32
 /** The length of a compact signature produced by EC signing */

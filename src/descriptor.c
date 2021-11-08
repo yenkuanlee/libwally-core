@@ -69,7 +69,6 @@
 #define DESCRIPTOR_KEY_VALUE_MAX_LENGTH     130
 #define DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH   18
 #define DESCRIPTOR_MIN_SIZE 20
-#define XONLY_PUBLIC_KEY_LEN 32
 
 #define DESCRIPTOR_CHECKSUM_LENGTH  8
 
@@ -2269,7 +2268,7 @@ static int generate_script_from_miniscript(
         if (ret == WALLY_OK && node->kind == DESCRIPTOR_KIND_PUBLIC_KEY) {
             if (*write_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN)
                 node->is_uncompress_key = true;
-            else if (*write_len == XONLY_PUBLIC_KEY_LEN)
+            else if (*write_len == EC_PUBLIC_KEY_XONLY_LEN)
                 node->is_xonly_key = true;
         }
     } else if (node->kind == DESCRIPTOR_KIND_NUMBER) {
@@ -2303,8 +2302,8 @@ static int generate_script_from_miniscript(
         if (ret == WALLY_OK) {
             if (output_len == EC_PRIVATE_KEY_LEN + 2 && privkey[EC_PRIVATE_KEY_LEN + 1] == 1) {
                 if (node->is_xonly_key) {
-                    memcpy(script, &pubkey[1], XONLY_PUBLIC_KEY_LEN);
-                    *write_len = XONLY_PUBLIC_KEY_LEN;
+                    memcpy(script, &pubkey[1], EC_PUBLIC_KEY_XONLY_LEN);
+                    *write_len = EC_PUBLIC_KEY_XONLY_LEN;
                 } else {
                     memcpy(script, pubkey, EC_PUBLIC_KEY_LEN);
                     *write_len = EC_PUBLIC_KEY_LEN;
@@ -2369,8 +2368,8 @@ static int generate_script_from_miniscript(
             memcpy(&extkey, &derive_extkey, sizeof(extkey));
         }
         if (node->is_xonly_key) {
-            memcpy(script, &extkey.pub_key[1], XONLY_PUBLIC_KEY_LEN);
-            *write_len = XONLY_PUBLIC_KEY_LEN;
+            memcpy(script, &extkey.pub_key[1], EC_PUBLIC_KEY_XONLY_LEN);
+            *write_len = EC_PUBLIC_KEY_XONLY_LEN;
         } else {
             memcpy(script, extkey.pub_key, EC_PUBLIC_KEY_LEN);
             *write_len = EC_PUBLIC_KEY_LEN;
@@ -2592,7 +2591,7 @@ static int analyze_miniscript_key(
             return wally_ec_public_key_verify(pubkey, buf_len);
         }
     }
-    else if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0 && str_len == XONLY_PUBLIC_KEY_LEN * 2) {
+    else if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0 && str_len == EC_PUBLIC_KEY_XONLY_LEN * 2) {
         ret = wally_hex_to_bytes(node->data, pubkey, sizeof(pubkey), &buf_len);
         if (ret == WALLY_OK) {
             node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
