@@ -288,12 +288,6 @@ static int generate_script_from_miniscript(
     unsigned char *script,
     size_t script_len,
     size_t *write_len);
-static int generate_script_from_number(
-    int64_t number,
-    struct miniscript_node_t *parent,
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len);
 
 /* Function */
 static bool is_ascii_string(const char *message, size_t max_len)
@@ -972,6 +966,26 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
     }
 
     return check_type_properties(node->type_properties);
+}
+
+static int generate_script_from_number(int64_t number, struct miniscript_node_t *parent,
+                                       unsigned char *script, size_t script_len, size_t *written)
+{
+    if ((parent && !parent->info) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
+        return WALLY_EINVAL;
+
+    if (number == -1) {
+        script[0] = OP_1NEGATE;
+        *written = 1;
+    } else if (number >= 0 && number <= 16) {
+        script[0] = value_to_op_n(number);
+        *written = 1;
+    } else {
+        /* PUSH <number> */
+        script[0] = scriptint_to_bytes(number, script + 1);
+        *written = script[0] + 1;
+    }
+    return WALLY_OK;
 }
 
 static int generate_by_miniscript_pk_k(
@@ -2203,30 +2217,6 @@ static int convert_bip32_path_to_array(
     wally_free(array);
     wally_free_string(buf);
     return ret;
-}
-
-static int generate_script_from_number(
-    int64_t number,
-    struct miniscript_node_t *parent,
-    unsigned char *script,
-    size_t script_len,
-    size_t *written)
-{
-    if ((parent && !parent->info) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
-        return WALLY_EINVAL;
-
-    if (number == -1) {
-        script[0] = OP_1NEGATE;
-        *written = 1;
-    } else if (number >= 0 && number <= 16) {
-        script[0] = value_to_op_n(number);
-        *written = 1;
-    } else {
-        /* PUSH <number> */
-        script[0] = scriptint_to_bytes(number, script + 1);
-        *written = script[0] + 1;
-    }
-    return WALLY_OK;
 }
 
 static int generate_script_from_miniscript(
