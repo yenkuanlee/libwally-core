@@ -2106,110 +2106,74 @@ static const struct miniscript_item_t *node_get_info(const struct miniscript_nod
     return node->info_idx ? &miniscript_info_table[node->info_idx - 1] : NULL;
 }
 
-static int convert_bip32_path_to_array(
-    const char *path,
-    uint32_t *bip32_array,
-    uint32_t array_num,
-    bool is_private,
-    uint32_t *count,
-    int8_t *wildcard_pos_out)
+static bool is_hardened_indicator(char c)
 {
-    int ret = WALLY_OK;
-    char *buf;
-    char *temp;
-    char *addr;
-    size_t len;
-    size_t index;
-    bool hardened;
-    uint32_t *array;
-    int32_t value;
-    char *err_ptr = NULL;
-    int8_t wildcard_pos = -1;
+    return c == '\'' || c == 'h' || c == 'H';
+}
 
-    buf = wally_strdup(path);
-    if (!buf)
-        return WALLY_ENOMEM;
+/* TODO: Expose this */
+static int bip32_path_from_string(const char *path,
+                                  uint32_t *child_path, uint32_t child_path_len,
+                                  bool is_private,
+                                  uint32_t *written, uint32_t *wildcard_pos_out)
+{
+    const char *p = path + (path[0] == '/' ? 1 : 0);
 
-    if (!(array = wally_malloc(DESCRIPTOR_BIP32_PATH_NUM_MAX * sizeof(*array)))) {
-        wally_free_string(buf);
-        return WALLY_ENOMEM;
-    }
+    *written = 0;
+    *wildcard_pos_out = 0;
 
-    addr = buf;
-    if (buf[0] == '/')
-        addr += 1;
-
-    for (index = 0; index < array_num + 1; ++index) {
-        if (*addr == '\0')
-            break;
-
-        if (index == array_num) {
-            ret = WALLY_EINVAL;
-            break;
+    while (*p) {
+        const char *start = p;
+        uint64_t v = 0;
+        while (*p >= '0' && *p <= '9') {
+            v = v * 10 + (*p++ - '0');
+            if (v >= BIP32_INITIAL_HARDENED_CHILD)
+                goto fail; /* Derivation index too large */
         }
-
-        temp = strchr(addr, '/');
-        if (temp) {
-            *temp = '\0';
-        }
-        len = strlen(addr);
-        if (!len) {
-            ret = WALLY_EINVAL;
-            break;
-        }
-        hardened = false;
-        if (addr[len - 1] == '\'' || addr[len - 1] == 'h' || addr[len - 1] == 'H') {
-            if (!is_private) {
-                ret = WALLY_EINVAL;
-                break;
+        if (p == start) {
+            /* No number found */
+            if (*p == '/') {
+                if ((p[-1] < '0' || p[-1] > '9') && !is_hardened_indicator(p[-1]))
+                    goto fail; /* Slash is only valid after a number/hardened indicator */
+                ++p;
+                continue;
             }
-            addr[len - 1] = '\0';
-            hardened = true;
-            --len;
-        }
-
-        if (*addr == '\0') {
-            ret = WALLY_EINVAL;
-            break;
-        }
-        if (wildcard_pos != -1) {
-            ret = WALLY_EINVAL;
-            break;
-        } else if (len == 1 && addr[len - 1] == '*') {
-            wildcard_pos = (int8_t)index;
-            array[index] = 0;
-        } else {
-            value = strtol(addr, &err_ptr, 10);
-            if ((err_ptr && *err_ptr != '\0') || value < 0) {
-                ret = WALLY_EINVAL;
-                break;
+            if (*p == '*') {
+                if (p[-1] != '/' || *wildcard_pos_out != 0)
+                    goto fail; /* Duplicate wildcard or not after a slash */
+                ++p;
+                if (child_path)
+                    child_path[*written] = is_hardened_indicator(*p) ? BIP32_INITIAL_HARDENED_CHILD : 0;
+                ++*written;
+                *wildcard_pos_out = *written;
+                if (is_hardened_indicator(*p))
+                    ++p;
+                continue;
             }
-            array[index] = (uint32_t)value;
-        }
+            goto fail; /* Unknown character */
+        } else if (*wildcard_pos_out)
+            goto fail; /* Number after a wildcard */
 
-        if (hardened) {
-            array[index] |= 0x80000000;
+        if (is_hardened_indicator(*p)) {
+            if (!is_private)
+                goto fail; /* Hardened derivation in non-private mode */
+            v |= BIP32_INITIAL_HARDENED_CHILD;
+            ++p;
         }
-
-        if (temp) {
-            addr = temp + 1;
-        } else {
-            ++index;
-            break;
+        if (*written == child_path_len) {
+            /* continue counting the resulting length, but don't write any more */
+            child_path = NULL;
         }
+        if (child_path)
+            child_path[*written] = v;
+        ++*written;
     }
 
-    if (ret == WALLY_OK && bip32_array) {
-        memcpy(bip32_array, array, sizeof(uint32_t) * index);
-        if (wildcard_pos_out)
-            *wildcard_pos_out = wildcard_pos;
-        if (count)
-            *count = (uint32_t)index;
-    }
-
-    wally_free(array);
-    wally_free_string(buf);
-    return ret;
+    return WALLY_OK;
+fail:
+    *written = 0;
+    *wildcard_pos_out = 0;
+    return WALLY_EINVAL;
 }
 
 static int generate_script_from_miniscript(
@@ -2291,9 +2255,7 @@ static int generate_script_from_miniscript(
     } else if ((node->kind & DESCRIPTOR_KIND_BIP32) == DESCRIPTOR_KIND_BIP32) {
         struct ext_key extkey;
         struct ext_key derive_extkey;
-        uint32_t bip32_array[DESCRIPTOR_BIP32_PATH_NUM_MAX];
-        int8_t wildcard_pos = -1;
-        uint32_t count = 0;
+        uint32_t child_path[DESCRIPTOR_BIP32_PATH_NUM_MAX];
 
         if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
             return ret;
@@ -2312,18 +2274,18 @@ static int generate_script_from_miniscript(
         }
 
         if (node->derive_path && node->derive_path[0] != '\0') {
-            ret = convert_bip32_path_to_array(node->derive_path, bip32_array,
-                                              DESCRIPTOR_BIP32_PATH_NUM_MAX,
-                                              (node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY),
-                                              &count, &wildcard_pos);
-            if (ret != WALLY_OK)
-                return ret;
+            uint32_t wildcard_pos, child_path_len;
+            ret = bip32_path_from_string(node->derive_path,
+                                         child_path, DESCRIPTOR_BIP32_PATH_NUM_MAX,
+                                         node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY,
+                                         &child_path_len, &wildcard_pos);
+            if (ret == WALLY_OK && child_path_len <= DESCRIPTOR_BIP32_PATH_NUM_MAX) {
+                if (wildcard_pos)
+                    child_path[wildcard_pos - 1] |= child_num;
 
-            if (wildcard_pos >= 0)
-                bip32_array[wildcard_pos] |= child_num;
-
-            ret = bip32_key_from_parent_path(&extkey, bip32_array, count,
-                                             BIP32_FLAG_KEY_PUBLIC, &derive_extkey);
+                ret = bip32_key_from_parent_path(&extkey, child_path, child_path_len,
+                                                 BIP32_FLAG_KEY_PUBLIC, &derive_extkey);
+            }
             if (ret != WALLY_OK)
                 return ret;
 
@@ -2630,13 +2592,15 @@ static int analyze_miniscript_key(
 
     if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0)
         node->is_xonly_key = true;
-    if (node->derive_path && node->derive_path[0] != '\0')
-        ret = convert_bip32_path_to_array(node->derive_path,
-                                          NULL,
-                                          DESCRIPTOR_BIP32_PATH_NUM_MAX,
-                                          (extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE),
-                                          NULL,
-                                          NULL);
+    if (node->derive_path && node->derive_path[0] != '\0') {
+        uint32_t child_path_len, wildcard_pos;
+        ret = bip32_path_from_string(node->derive_path,
+                                     NULL, DESCRIPTOR_BIP32_PATH_NUM_MAX,
+                                     extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE,
+                                     &child_path_len, &wildcard_pos);
+        if (ret == WALLY_OK && child_path_len > DESCRIPTOR_BIP32_PATH_NUM_MAX)
+            ret = WALLY_EINVAL; /* Path too long */
+    }
     return ret;
 }
 
