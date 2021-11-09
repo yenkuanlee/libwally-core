@@ -4,6 +4,7 @@
 #include "ccan/ccan/crypto/sha256/sha256.h"
 #include "script.h"
 #include "script_int.h"
+#include "transaction_shared.h"
 
 #include <include/wally_address.h>
 #include <include/wally_bip32.h>
@@ -62,7 +63,7 @@
 #define PROP_OP_1  (TYPE_B | PROP_Z | PROP_U | PROP_F | PROP_M | PROP_X)
 
 #define DESCRIPTOR_LIMIT_LENGTH             1000000
-#define DESCRIPTOR_BIP32_PATH_NUM_MAX       256
+#define DESCRIPTOR_BIP32_PATH_NUM_MAX       128
 #define DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE   520
 #define DESCRIPTOR_WITNESS_SCRIPT_MAX_SIZE  10000
 #define DESCRIPTOR_MINISCRIPT_MUILTI_MAX    20
@@ -155,9 +156,10 @@ struct miniscript_node_t {
     uint32_t type_properties;
     int64_t number;
     char *data;
-    char *derive_path;
+    uint32_t *child_path;
     uint32_t data_size;
-    uint32_t derive_path_len;
+    unsigned char child_path_len;
+    unsigned char wildcard_pos;
     unsigned char info_idx;
     unsigned char network_type;
     bool is_uncompress_key;
@@ -345,7 +347,7 @@ static void free_miniscript_node(struct miniscript_node_t *node)
     }
 
     clear_and_free(node->data, node->data_size);
-    clear_and_free(node->derive_path, node->derive_path_len);
+    clear_and_free(node->child_path, node->child_path_len * sizeof(*node->child_path));
     clear_and_free(node, sizeof(*node));
 }
 
@@ -2253,15 +2255,14 @@ static int generate_script_from_miniscript(
             }
         }
     } else if ((node->kind & DESCRIPTOR_KIND_BIP32) == DESCRIPTOR_KIND_BIP32) {
-        struct ext_key extkey;
-        struct ext_key derive_extkey;
-        uint32_t child_path[DESCRIPTOR_BIP32_PATH_NUM_MAX];
+        struct ext_key master;
+        struct ext_key derived;
 
-        if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
+        if ((ret = bip32_key_from_base58(node->data, &master)) != WALLY_OK)
             return ret;
 
-        if ((node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && extkey.version == BIP32_VER_MAIN_PRIVATE) ||
-            (node->kind != DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && extkey.version == BIP32_VER_MAIN_PUBLIC)) {
+        if ((node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && master.version == BIP32_VER_MAIN_PRIVATE) ||
+            (node->kind != DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && master.version == BIP32_VER_MAIN_PUBLIC)) {
             if (node->network_type != 0 && node->network_type != WALLY_NETWORK_BITCOIN_MAINNET) {
                 return WALLY_EINVAL;
             }
@@ -2273,29 +2274,26 @@ static int generate_script_from_miniscript(
             node->network_type = WALLY_NETWORK_BITCOIN_TESTNET;
         }
 
-        if (node->derive_path && node->derive_path[0] != '\0') {
-            uint32_t wildcard_pos, child_path_len;
-            ret = bip32_path_from_string(node->derive_path,
-                                         child_path, DESCRIPTOR_BIP32_PATH_NUM_MAX,
-                                         node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY,
-                                         &child_path_len, &wildcard_pos);
-            if (ret == WALLY_OK && child_path_len <= DESCRIPTOR_BIP32_PATH_NUM_MAX) {
-                if (wildcard_pos)
-                    child_path[wildcard_pos - 1] |= child_num;
-
-                ret = bip32_key_from_parent_path(&extkey, child_path, child_path_len,
-                                                 BIP32_FLAG_KEY_PUBLIC, &derive_extkey);
+        if (node->child_path) {
+            const uint32_t wildcard_pos = node->wildcard_pos;
+            if (wildcard_pos) {
+                uint32_t h = node->child_path[wildcard_pos - 1] & BIP32_INITIAL_HARDENED_CHILD;
+                node->child_path[wildcard_pos - 1] = child_num | h;
             }
+
+            ret = bip32_key_from_parent_path(&master,
+                                             node->child_path, node->child_path_len,
+                                             BIP32_FLAG_KEY_PUBLIC, &derived);
             if (ret != WALLY_OK)
                 return ret;
 
-            memcpy(&extkey, &derive_extkey, sizeof(extkey));
+            memcpy(&master, &derived, sizeof(master));
         }
         if (node->is_xonly_key) {
-            memcpy(script, &extkey.pub_key[1], EC_PUBLIC_KEY_XONLY_LEN);
+            memcpy(script, &master.pub_key[1], EC_PUBLIC_KEY_XONLY_LEN);
             *write_len = EC_PUBLIC_KEY_XONLY_LEN;
         } else {
-            memcpy(script, extkey.pub_key, EC_PUBLIC_KEY_LEN);
+            memcpy(script, master.pub_key, EC_PUBLIC_KEY_LEN);
             *write_len = EC_PUBLIC_KEY_LEN;
         }
     } else {
@@ -2549,17 +2547,13 @@ static int analyze_miniscript_key(
     }
 
     /* check bip32 key */
-    buf = strchr(node->data, '/');
-    if (buf) {
+    if ((buf = strchr(node->data, '/'))) {
         if (buf[1] == '/')
             return WALLY_EINVAL;
-
-        node->derive_path = wally_strdup(buf);
-        if (!node->derive_path)
-            return WALLY_ENOMEM;
-
-        node->derive_path_len = (uint32_t)strlen(node->derive_path);
-        *buf = '\0';
+        if (!buf[1])
+            buf = NULL; /* Empty derivation path */
+        else
+            *buf++ = '\0';
         str_len = strlen(node->data);
     }
 
@@ -2592,14 +2586,24 @@ static int analyze_miniscript_key(
 
     if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0)
         node->is_xonly_key = true;
-    if (node->derive_path && node->derive_path[0] != '\0') {
+
+    if (buf) {
+        uint32_t child_path[DESCRIPTOR_BIP32_PATH_NUM_MAX];
         uint32_t child_path_len, wildcard_pos;
-        ret = bip32_path_from_string(node->derive_path,
-                                     NULL, DESCRIPTOR_BIP32_PATH_NUM_MAX,
+
+        ret = bip32_path_from_string(buf, child_path, sizeof(child_path),
                                      extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE,
                                      &child_path_len, &wildcard_pos);
         if (ret == WALLY_OK && child_path_len > DESCRIPTOR_BIP32_PATH_NUM_MAX)
             ret = WALLY_EINVAL; /* Path too long */
+        else {
+            if (!clone_data((void **)&node->child_path, child_path, child_path_len * sizeof(child_path[0])))
+                ret = WALLY_ENOMEM;
+            else {
+                node->child_path_len = child_path_len;
+                node->wildcard_pos = wildcard_pos;
+            }
+        }
     }
     return ret;
 }
