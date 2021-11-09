@@ -2117,7 +2117,7 @@ static bool is_hardened_indicator(char c)
 static int bip32_path_from_string(const char *path,
                                   uint32_t *child_path, uint32_t child_path_len,
                                   bool is_private,
-                                  uint32_t *written, uint32_t *wildcard_pos_out)
+                                  size_t *written, size_t *wildcard_pos_out)
 {
     const char *p = path + (path[0] == '/' ? 1 : 0);
 
@@ -2275,7 +2275,7 @@ static int generate_script_from_miniscript(
         }
 
         if (node->child_path) {
-            const uint32_t wildcard_pos = node->wildcard_pos;
+            const size_t wildcard_pos = node->wildcard_pos;
             if (wildcard_pos) {
                 uint32_t h = node->child_path[wildcard_pos - 1] & BIP32_INITIAL_HARDENED_CHILD;
                 node->child_path[wildcard_pos - 1] = child_num | h;
@@ -2589,7 +2589,7 @@ static int analyze_miniscript_key(
 
     if (buf) {
         uint32_t child_path[DESCRIPTOR_BIP32_PATH_NUM_MAX];
-        uint32_t child_path_len, wildcard_pos;
+        size_t child_path_len, wildcard_pos;
 
         ret = bip32_path_from_string(buf, child_path, sizeof(child_path),
                                      extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE,
