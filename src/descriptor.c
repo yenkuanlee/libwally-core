@@ -161,7 +161,6 @@ struct miniscript_node_t {
     unsigned char child_path_len;
     unsigned char wildcard_pos;
     unsigned char info_idx;
-    unsigned char network_type;
     bool is_uncompress_key;
     bool is_xonly_key;
 };
@@ -2228,15 +2227,6 @@ static int generate_script_from_miniscript(
         ret = wally_ec_public_key_from_private_key(&privkey[1], EC_PRIVATE_KEY_LEN,
                                                    pubkey, sizeof(pubkey));
         if (ret == WALLY_OK) {
-            if (privkey[0] == WALLY_ADDRESS_VERSION_WIF_MAINNET) {
-                if (node->network_type != 0 && node->network_type != WALLY_NETWORK_BITCOIN_MAINNET)
-                    return WALLY_EINVAL;
-                node->network_type = WALLY_NETWORK_BITCOIN_MAINNET;
-            } else {
-                if (node->network_type != 0 && node->network_type != WALLY_NETWORK_BITCOIN_TESTNET)
-                    return WALLY_EINVAL;
-                node->network_type = WALLY_NETWORK_BITCOIN_TESTNET;
-            }
             if (output_len == EC_PRIVATE_KEY_LEN + 2 && privkey[EC_PRIVATE_KEY_LEN + 1] == 1) {
                 if (node->is_xonly_key) {
                     memcpy(script, &pubkey[1], EC_PUBLIC_KEY_XONLY_LEN);
@@ -2486,7 +2476,7 @@ static int analyze_miniscript_key(
     size_t buf_len;
     char *buf = NULL;
     int size;
-    unsigned char privkey_bytes[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
+    unsigned char privkey[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
     struct ext_key extkey;
 
     if (!node || (parent_node && !parent_node->info_idx))
@@ -2513,23 +2503,22 @@ static int analyze_miniscript_key(
         return WALLY_OK;
 
     /* check key (private key(wif)) */
-    ret = wally_base58_to_bytes(node->data, BASE58_FLAG_CHECKSUM, privkey_bytes,
-                                sizeof(privkey_bytes), &buf_len);
+    ret = wally_base58_to_bytes(node->data, BASE58_FLAG_CHECKSUM, privkey, sizeof(privkey), &buf_len);
     if (ret == WALLY_OK && buf_len <= EC_PRIVATE_KEY_LEN + 2) {
-        if (addr_item && (addr_item->version_wif != privkey_bytes[0]))
+        if (addr_item && (addr_item->version_wif != privkey[0]))
             return WALLY_EINVAL;
 
         if (buf_len == EC_PRIVATE_KEY_LEN + 1 ||
-            (buf_len == EC_PRIVATE_KEY_LEN + 2 && privkey_bytes[EC_PRIVATE_KEY_LEN + 1] == 0x01)) {
+            (buf_len == EC_PRIVATE_KEY_LEN + 2 && privkey[EC_PRIVATE_KEY_LEN + 1] == 0x01)) {
             node->kind = DESCRIPTOR_KIND_PRIVATE_KEY;
             if (buf_len == EC_PRIVATE_KEY_LEN + 1) {
                 node->is_uncompress_key = true;
-                if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0)
+                if (flags & WALLY_MINISCRIPT_TAPSCRIPT)
                     return WALLY_EINVAL;
             }
-            if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0)
+            if (flags & WALLY_MINISCRIPT_TAPSCRIPT)
                 node->is_xonly_key = true;
-            return wally_ec_private_key_verify(&privkey_bytes[1], EC_PRIVATE_KEY_LEN);
+            return wally_ec_private_key_verify(&privkey[1], EC_PRIVATE_KEY_LEN);
         }
         return WALLY_EINVAL;
     }
