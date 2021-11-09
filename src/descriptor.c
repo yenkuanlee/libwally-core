@@ -2560,31 +2560,21 @@ static int analyze_miniscript_key(
     if ((ret = bip32_key_from_base58(node->data, &extkey)) != WALLY_OK)
         return ret;
 
-    if (extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE) {
+    if (extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE)
         node->kind = DESCRIPTOR_KIND_BIP32_PRIVATE_KEY;
-        if (extkey.version == BIP32_VER_MAIN_PRIVATE) {
-            if (addr_item && (addr_item->network != WALLY_NETWORK_BITCOIN_MAINNET) &&
-                (addr_item->network != WALLY_NETWORK_LIQUID))
-                return WALLY_EINVAL;
-        } else {
-            if (addr_item && (addr_item->network == WALLY_NETWORK_BITCOIN_MAINNET ||
-                              addr_item->network == WALLY_NETWORK_LIQUID))
-                return WALLY_EINVAL;
-        }
-    } else {
+    else
         node->kind = DESCRIPTOR_KIND_BIP32_PUBLIC_KEY;
-        if (extkey.version == BIP32_VER_MAIN_PUBLIC) {
-            if (addr_item && (addr_item->network != WALLY_NETWORK_BITCOIN_MAINNET) &&
-                (addr_item->network != WALLY_NETWORK_LIQUID))
-                return WALLY_EINVAL;
-        } else {
-            if (addr_item && (addr_item->network == WALLY_NETWORK_BITCOIN_MAINNET ||
-                              addr_item->network == WALLY_NETWORK_LIQUID))
-                return WALLY_EINVAL;
-        }
+
+    if (addr_item) {
+        const bool main_key = extkey.version == BIP32_VER_MAIN_PUBLIC ||
+                              extkey.version == BIP32_VER_MAIN_PRIVATE;
+        const bool main_net = addr_item->network == WALLY_NETWORK_BITCOIN_MAINNET ||
+                              addr_item->network == WALLY_NETWORK_LIQUID;
+        if (main_key != main_net)
+            return WALLY_EINVAL; /* Mismatched main/test network */
     }
 
-    if ((flags & WALLY_MINISCRIPT_TAPSCRIPT) != 0)
+    if (flags & WALLY_MINISCRIPT_TAPSCRIPT)
         node->is_xonly_key = true;
 
     if (buf) {
@@ -2592,7 +2582,7 @@ static int analyze_miniscript_key(
         size_t child_path_len, wildcard_pos;
 
         ret = bip32_path_from_string(buf, child_path, sizeof(child_path),
-                                     extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE,
+                                     node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY,
                                      &child_path_len, &wildcard_pos);
         if (ret == WALLY_OK && child_path_len > DESCRIPTOR_BIP32_PATH_NUM_MAX)
             ret = WALLY_EINVAL; /* Path too long */
