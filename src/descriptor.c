@@ -150,7 +150,6 @@ struct miniscript_node_t {
     struct miniscript_node_t *next;
     struct miniscript_node_t *child;
     struct miniscript_node_t *parent;
-    unsigned int chain_count;
     char wrapper_str[12];
     int kind;
     uint32_t type_properties;
@@ -2807,12 +2806,8 @@ static int analyze_miniscript(
         *generate_node = node;
         if (parent_node && !parent_node->child)
             parent_node->child = node;
-        if (prev_node) {
-            node->chain_count = prev_node->chain_count + 1;
+        if (prev_node)
             prev_node->next = node;
-        } else {
-            node->chain_count = 1;
-        }
     }
 
     clear_and_free(sub_str, sub_str_len);
