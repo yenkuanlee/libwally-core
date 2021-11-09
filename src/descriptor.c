@@ -2256,26 +2256,14 @@ static int generate_script_from_miniscript(
         }
     } else if ((node->kind & DESCRIPTOR_KIND_BIP32) == DESCRIPTOR_KIND_BIP32) {
         struct ext_key master;
-        struct ext_key derived;
 
         if ((ret = bip32_key_from_base58(node->data, &master)) != WALLY_OK)
             return ret;
 
-        if ((node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && master.version == BIP32_VER_MAIN_PRIVATE) ||
-            (node->kind != DESCRIPTOR_KIND_BIP32_PRIVATE_KEY && master.version == BIP32_VER_MAIN_PUBLIC)) {
-            if (node->network_type != 0 && node->network_type != WALLY_NETWORK_BITCOIN_MAINNET) {
-                return WALLY_EINVAL;
-            }
-            node->network_type = WALLY_NETWORK_BITCOIN_MAINNET;
-        } else {
-            if (node->network_type != 0 && node->network_type != WALLY_NETWORK_BITCOIN_TESTNET) {
-                return WALLY_EINVAL;
-            }
-            node->network_type = WALLY_NETWORK_BITCOIN_TESTNET;
-        }
-
         if (node->child_path) {
+            struct ext_key derived;
             const size_t wildcard_pos = node->wildcard_pos;
+
             if (wildcard_pos) {
                 uint32_t h = node->child_path[wildcard_pos - 1] & BIP32_INITIAL_HARDENED_CHILD;
                 node->child_path[wildcard_pos - 1] = child_num | h;
