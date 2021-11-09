@@ -139,11 +139,11 @@ struct wally_descriptor_script_item {
 
 struct miniscript_item_t {
     const char *name;
-    int kind;
-    uint32_t type_properties;
-    int inner_num;
-    wally_verify_descriptor_t verify_function;
-    wally_descriptor_to_script_t generate_function;
+    const int kind;
+    const uint32_t type_properties;
+    const int inner_num;
+    const wally_verify_descriptor_t verify_function;
+    const wally_descriptor_to_script_t generate_function;
 };
 
 struct miniscript_node_t {
