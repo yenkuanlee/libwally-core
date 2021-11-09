@@ -125,11 +125,6 @@ typedef int (*wally_descriptor_to_script_t)(
     size_t script_len,
     size_t *write_len);
 
-typedef int (*wally_miniscript_wrapper_to_script_t)(
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len);
-
 /* Struct */
 struct wally_descriptor_script_item {
     unsigned char *script;
