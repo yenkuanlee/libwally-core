@@ -38,29 +38,29 @@
 #define PROP_M  0x00010000  /* Nonmalleable property */
 #define PROP_X  0x00020000  /* Expensive verify */
 
-#define DESCRIPTOR_KIND_MINISCRIPT  0x01
-#define DESCRIPTOR_KIND_DESCRIPTOR  0x02    /* Output Descriptor */
-
-#define DESCRIPTOR_KIND_FRAGMENT  0x01
-#define DESCRIPTOR_KIND_SCRIPT    0x02    /* Output Descriptor script */
-#define DESCRIPTOR_KIND_RAW       0x04    /* Output Descriptor */
-#define DESCRIPTOR_KIND_NUMBER    0x08    /* Output Descriptor */
-#define DESCRIPTOR_KIND_ADDRESS   0x10    /* Output Descriptor */
-#define DESCRIPTOR_KIND_KEY       0x20    /* Output Descriptor */
-
-#define DESCRIPTOR_KIND_BASE58    (0x0100 | DESCRIPTOR_KIND_ADDRESS)
-#define DESCRIPTOR_KIND_BECH32    (0x0200 | DESCRIPTOR_KIND_ADDRESS)
-
-#define DESCRIPTOR_KIND_PUBLIC_KEY          (0x001000 | DESCRIPTOR_KIND_KEY)
-#define DESCRIPTOR_KIND_PRIVATE_KEY         (0x002000 | DESCRIPTOR_KIND_KEY)
-#define DESCRIPTOR_KIND_BIP32               (0x004000 | DESCRIPTOR_KIND_KEY)
-#define DESCRIPTOR_KIND_BIP32_PRIVATE_KEY   (0x010000 | DESCRIPTOR_KIND_BIP32)
-#define DESCRIPTOR_KIND_BIP32_PUBLIC_KEY    (0x020000 | DESCRIPTOR_KIND_BIP32)
-
 /* OP_0 properties: Bzudemsx */
 #define PROP_OP_0  (TYPE_B | PROP_Z | PROP_U | PROP_D | PROP_E | PROP_M | PROP_S | PROP_X)
 /* OP_1 properties: Bzufmx */
 #define PROP_OP_1  (TYPE_B | PROP_Z | PROP_U | PROP_F | PROP_M | PROP_X)
+
+#define KIND_MINISCRIPT 0x01
+#define KIND_DESCRIPTOR 0x02 /* Output Descriptor */
+
+#define KIND_FRAGMENT   0x01
+#define KIND_SCRIPT     0x02 /* Output Descriptor script */
+#define KIND_RAW        0x04 /* Output Descriptor */
+#define KIND_NUMBER     0x08 /* Output Descriptor */
+#define KIND_ADDRESS    0x10 /* Output Descriptor */
+#define KIND_KEY        0x20 /* Output Descriptor */
+
+#define KIND_BASE58    (0x0100 | KIND_ADDRESS)
+#define KIND_BECH32    (0x0200 | KIND_ADDRESS)
+
+#define KIND_PUBLIC_KEY          (0x001000 | KIND_KEY)
+#define KIND_PRIVATE_KEY         (0x002000 | KIND_KEY)
+#define KIND_BIP32               (0x004000 | KIND_KEY)
+#define KIND_BIP32_PRIVATE_KEY   (0x010000 | KIND_BIP32)
+#define KIND_BIP32_PUBLIC_KEY    (0x020000 | KIND_BIP32)
 
 #define DESCRIPTOR_LIMIT_LENGTH             1000000
 #define DESCRIPTOR_BIP32_PATH_NUM_MAX       128
@@ -75,40 +75,38 @@
 #define DESCRIPTOR_CHECKSUM_LENGTH  8
 
 /* output descriptor */
-#define DESCRIPTOR_KIND_DESCRIPTOR_PK      (0x00000100 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_PKH     (0x00000200 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_MULTI   (0x00000300 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_MULTI_S (0x00000400 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_SH      (0x00000500 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_WPKH    (0x00010000 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_WSH     (0x00020000 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_COMBO   (0x00030000 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_ADDR    (0x00040000 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_RAW     (0x00050000 | DESCRIPTOR_KIND_DESCRIPTOR)
-#define DESCRIPTOR_KIND_DESCRIPTOR_MASK    (0xffffff00 | DESCRIPTOR_KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_PK       (0x00000100 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_PKH      (0x00000200 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_MULTI    (0x00000300 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_MULTI_S  (0x00000400 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_SH       (0x00000500 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_WPKH     (0x00010000 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_WSH      (0x00020000 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_COMBO    (0x00030000 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_ADDR     (0x00040000 | KIND_DESCRIPTOR)
+#define KIND_DESCRIPTOR_RAW      (0x00050000 | KIND_DESCRIPTOR)
 
 /* miniscript */
-#define DESCRIPTOR_KIND_MINISCRIPT_PK        (0x00000100 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_PKH       (0x00000200 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_MULTI     (0x00000300 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_PK_K      (0x00001000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_PK_H      (0x00002000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_OLDER     (0x00010000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_AFTER     (0x00020000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_SHA256    (0x00030000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_HASH256   (0x00040000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160 (0x00050000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_HASH160   (0x00060000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_THRESH    (0x00070000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_ANDOR     (0x01000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_AND_V     (0x02000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_AND_B     (0x03000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_AND_N     (0x04000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_OR_B      (0x05000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_OR_C      (0x06000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_OR_D      (0x07000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_OR_I      (0x08000000 | DESCRIPTOR_KIND_MINISCRIPT)
-#define DESCRIPTOR_KIND_MINISCRIPT_MASK      (0xffffff00 | DESCRIPTOR_KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_PK        (0x00000100 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_PKH       (0x00000200 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_MULTI     (0x00000300 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_PK_K      (0x00001000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_PK_H      (0x00002000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_OLDER     (0x00010000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_AFTER     (0x00020000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_SHA256    (0x00030000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_HASH256   (0x00040000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_RIPEMD160 (0x00050000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_HASH160   (0x00060000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_THRESH    (0x00070000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_ANDOR     (0x01000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_AND_V     (0x02000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_AND_B     (0x03000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_AND_N     (0x04000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_OR_B      (0x05000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_OR_C      (0x06000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_OR_D      (0x07000000 | KIND_MINISCRIPT)
+#define KIND_MINISCRIPT_OR_I      (0x08000000 | KIND_MINISCRIPT)
 
 /* Type */
 struct miniscript_node_t;
@@ -410,7 +408,7 @@ static bool has_uncompressed_key_by_child(struct miniscript_node_t *node)
 
 static int verify_descriptor_wsh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
-    if (parent && (!parent->info_idx || (node_get_info(parent)->kind != DESCRIPTOR_KIND_DESCRIPTOR_SH)))
+    if (parent && (!parent->info_idx || (node_get_info(parent)->kind != KIND_DESCRIPTOR_SH)))
         return WALLY_EINVAL;
     if (!node_validate_inner(node) || !node->child->info_idx)
         return WALLY_EINVAL;
@@ -425,7 +423,7 @@ static int verify_descriptor_pk(struct miniscript_node_t *node, struct miniscrip
 {
     (void)parent;
     if (!node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
+        (node->child->kind & KIND_KEY) != KIND_KEY)
         return WALLY_EINVAL;
 
     node->type_properties = node_get_info(node)->type_properties;
@@ -440,14 +438,14 @@ static int verify_descriptor_pkh(struct miniscript_node_t *node, struct miniscri
 static int verify_descriptor_wpkh(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     struct miniscript_node_t *parent_item = parent;
-    if (parent && (!parent->info_idx || (node_get_info(parent)->kind & DESCRIPTOR_KIND_MINISCRIPT)))
+    if (parent && (!parent->info_idx || (node_get_info(parent)->kind & KIND_MINISCRIPT)))
         return WALLY_EINVAL;
     if (!node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
+        (node->child->kind & KIND_KEY) != KIND_KEY)
         return WALLY_EINVAL;
 
     while (parent_item) {
-        if (parent_item->kind == DESCRIPTOR_KIND_DESCRIPTOR_WSH)
+        if (parent_item->kind == KIND_DESCRIPTOR_WSH)
             return WALLY_EINVAL;
         parent_item = parent_item->parent;
     }
@@ -484,13 +482,13 @@ static int verify_descriptor_multi(struct miniscript_node_t *node, struct minisc
 
     top = node->child;
     require_num = (uint32_t) top->number;
-    if (!top->next || top->info_idx || top->kind != DESCRIPTOR_KIND_NUMBER ||
+    if (!top->next || top->info_idx || top->kind != KIND_NUMBER ||
         top->number <= 0 || count < require_num)
         return WALLY_EINVAL;
 
     key = top->next;
     while (key) {
-        if (key->info_idx || !(key->kind & DESCRIPTOR_KIND_KEY))
+        if (key->info_idx || !(key->kind & KIND_KEY))
             return WALLY_EINVAL;
 
         key = key->next;
@@ -508,7 +506,7 @@ static int verify_descriptor_sortedmulti(struct miniscript_node_t *node, struct 
 static int verify_descriptor_addr(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     if (parent || !node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_ADDRESS) != DESCRIPTOR_KIND_ADDRESS)
+        (node->child->kind & KIND_ADDRESS) != KIND_ADDRESS)
         return WALLY_EINVAL;
 
     return WALLY_OK;
@@ -517,7 +515,7 @@ static int verify_descriptor_addr(struct miniscript_node_t *node, struct miniscr
 static int verify_descriptor_raw(struct miniscript_node_t *node, struct miniscript_node_t *parent)
 {
     if (parent || !node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_RAW) == 0)
+        (node->child->kind & KIND_RAW) == 0)
         return WALLY_EINVAL;
 
     return WALLY_OK;
@@ -527,7 +525,7 @@ static int verify_miniscript_pkh(struct miniscript_node_t *node, struct miniscri
 {
     (void)parent;
     if (!node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_KEY) != DESCRIPTOR_KIND_KEY)
+        (node->child->kind & KIND_KEY) != KIND_KEY)
         return WALLY_EINVAL;
 
     node->type_properties = node_get_info(node)->type_properties;
@@ -543,7 +541,7 @@ static int verify_miniscript_older(struct miniscript_node_t *node, struct minisc
 {
     (void)parent;
     if (!node_validate_inner(node) || node->child->info_idx ||
-        node->child->kind != DESCRIPTOR_KIND_NUMBER ||
+        node->child->kind != KIND_NUMBER ||
         node->child->number <= 0 || node->child->number > 0x7fffffff)
         return WALLY_EINVAL;
 
@@ -560,7 +558,7 @@ static int verify_miniscript_hash_type(struct miniscript_node_t *node, struct mi
 {
     (void)parent;
     if (!node_validate_inner(node) || node->child->info_idx ||
-        (node->child->kind & DESCRIPTOR_KIND_RAW) == 0)
+        (node->child->kind & KIND_RAW) == 0)
         return WALLY_EINVAL;
 
     node->type_properties = node_get_info(node)->type_properties;
@@ -825,7 +823,7 @@ static int verify_miniscript_thresh(struct miniscript_node_t *node, struct minis
         return WALLY_EINVAL;
 
     top = node->child;
-    if (top->info_idx || top->kind != DESCRIPTOR_KIND_NUMBER || top->number < 0)
+    if (top->info_idx || top->kind != KIND_NUMBER || top->number < 0)
         return WALLY_EINVAL;
 
     k = (uint32_t) top->number;
@@ -1974,112 +1972,110 @@ static int generate_miniscript_wrappers(struct miniscript_node_t *node,
 static const struct miniscript_item_t miniscript_info_table[] = {
     /* output descriptor */
     {
-        "sh", DESCRIPTOR_KIND_DESCRIPTOR_SH, 0, 1, verify_descriptor_sh, generate_by_descriptor_sh
+        "sh", KIND_DESCRIPTOR_SH, 0, 1, verify_descriptor_sh, generate_by_descriptor_sh
     },
     {
-        "wsh", DESCRIPTOR_KIND_DESCRIPTOR_WSH, 0, 1, verify_descriptor_wsh, generate_by_descriptor_wsh
+        "wsh", KIND_DESCRIPTOR_WSH, 0, 1, verify_descriptor_wsh, generate_by_descriptor_wsh
     },
     {   /* c:pk_k */
-        "pk", DESCRIPTOR_KIND_DESCRIPTOR_PK | DESCRIPTOR_KIND_MINISCRIPT_PK,
+        "pk", KIND_DESCRIPTOR_PK | KIND_MINISCRIPT_PK,
         TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_descriptor_pk, generate_by_descriptor_pk
     },
     {   /* c:pk_h */
-        "pkh", DESCRIPTOR_KIND_DESCRIPTOR_PKH | DESCRIPTOR_KIND_MINISCRIPT_PKH,
+        "pkh", KIND_DESCRIPTOR_PKH | KIND_MINISCRIPT_PKH,
         TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_descriptor_pkh, generate_by_descriptor_pkh
     },
     {
-        "wpkh", DESCRIPTOR_KIND_DESCRIPTOR_WPKH, 0, 1, verify_descriptor_wpkh, generate_by_descriptor_wpkh
+        "wpkh", KIND_DESCRIPTOR_WPKH, 0, 1, verify_descriptor_wpkh, generate_by_descriptor_wpkh
     },
     {
-        "combo", DESCRIPTOR_KIND_DESCRIPTOR_COMBO, 0, 1, verify_descriptor_combo, generate_by_descriptor_combo
+        "combo", KIND_DESCRIPTOR_COMBO, 0, 1, verify_descriptor_combo, generate_by_descriptor_combo
     },
     {
-        "multi", DESCRIPTOR_KIND_DESCRIPTOR_MULTI | DESCRIPTOR_KIND_MINISCRIPT_MULTI,
+        "multi", KIND_DESCRIPTOR_MULTI | KIND_MINISCRIPT_MULTI,
         TYPE_B | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S,
         1, verify_descriptor_multi, generate_by_descriptor_multi
     },
     {
-        "sortedmulti", DESCRIPTOR_KIND_DESCRIPTOR_MULTI_S, 0, -1, verify_descriptor_sortedmulti, generate_by_descriptor_sorted_multi
+        "sortedmulti", KIND_DESCRIPTOR_MULTI_S, 0, -1, verify_descriptor_sortedmulti, generate_by_descriptor_sorted_multi
     },
     {
-        "addr", DESCRIPTOR_KIND_DESCRIPTOR_ADDR, 0, 1, verify_descriptor_addr, generate_by_descriptor_addr
+        "addr", KIND_DESCRIPTOR_ADDR, 0, 1, verify_descriptor_addr, generate_by_descriptor_addr
     },
     {
-        "raw", DESCRIPTOR_KIND_DESCRIPTOR_RAW, 0, 1, verify_descriptor_raw, generate_by_descriptor_raw
+        "raw", KIND_DESCRIPTOR_RAW, 0, 1, verify_descriptor_raw, generate_by_descriptor_raw
     },
     /* miniscript */
     {
-        "pk_k", DESCRIPTOR_KIND_MINISCRIPT_PK_K,
+        "pk_k", KIND_MINISCRIPT_PK_K,
         TYPE_K | PROP_O | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_miniscript_pk, generate_by_miniscript_pk_k
     },
     {
-        "pk_h", DESCRIPTOR_KIND_MINISCRIPT_PK_H,
+        "pk_h", KIND_MINISCRIPT_PK_H,
         TYPE_K | PROP_N | PROP_D | PROP_U | PROP_E | PROP_M | PROP_S | PROP_X,
         1, verify_miniscript_pkh, generate_by_miniscript_pk_h
     },
     {
-        "older", DESCRIPTOR_KIND_MINISCRIPT_OLDER,
+        "older", KIND_MINISCRIPT_OLDER,
         TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
         1, verify_miniscript_older, generate_by_miniscript_older
     },
     {
-        "after", DESCRIPTOR_KIND_MINISCRIPT_AFTER,
+        "after", KIND_MINISCRIPT_AFTER,
         TYPE_B | PROP_Z | PROP_F | PROP_M | PROP_X,
         1, verify_miniscript_after, generate_by_miniscript_after
     },
     {
-        "sha256", DESCRIPTOR_KIND_MINISCRIPT_SHA256,
+        "sha256", KIND_MINISCRIPT_SHA256,
         TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_sha256, generate_by_miniscript_sha256
     },
     {
-        "hash256", DESCRIPTOR_KIND_MINISCRIPT_HASH256,
+        "hash256", KIND_MINISCRIPT_HASH256,
         TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_hash256, generate_by_miniscript_hash256
     },
     {
-        "ripemd160", DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160,
+        "ripemd160", KIND_MINISCRIPT_RIPEMD160,
         TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_ripemd160, generate_by_miniscript_ripemd160
     },
     {
-        "hash160", DESCRIPTOR_KIND_MINISCRIPT_HASH160,
+        "hash160", KIND_MINISCRIPT_HASH160,
         TYPE_B | PROP_O | PROP_N | PROP_D | PROP_U | PROP_M,
         1, verify_miniscript_hash160, generate_by_miniscript_hash160
     },
     {
-        "andor", DESCRIPTOR_KIND_MINISCRIPT_ANDOR, 0, 3, verify_miniscript_andor, generate_by_miniscript_andor
+        "andor", KIND_MINISCRIPT_ANDOR, 0, 3, verify_miniscript_andor, generate_by_miniscript_andor
     },
     {
-        "and_v", DESCRIPTOR_KIND_MINISCRIPT_AND_V, 0, 2, verify_miniscript_and_v, generate_by_miniscript_and_v
+        "and_v", KIND_MINISCRIPT_AND_V, 0, 2, verify_miniscript_and_v, generate_by_miniscript_and_v
     },
     {
-        "and_b", DESCRIPTOR_KIND_MINISCRIPT_AND_B, TYPE_B | PROP_U,
+        "and_b", KIND_MINISCRIPT_AND_B, TYPE_B | PROP_U,
         2, verify_miniscript_and_b, generate_by_miniscript_and_b
     },
     {
-        "and_n", DESCRIPTOR_KIND_MINISCRIPT_AND_N, 0, 2, verify_miniscript_and_n, generate_by_miniscript_and_n
+        "and_n", KIND_MINISCRIPT_AND_N, 0, 2, verify_miniscript_and_n, generate_by_miniscript_and_n
     },
     {
-        "or_b", DESCRIPTOR_KIND_MINISCRIPT_OR_B,
-        TYPE_B | PROP_D | PROP_U,
+        "or_b", KIND_MINISCRIPT_OR_B, TYPE_B | PROP_D | PROP_U,
         2, verify_miniscript_or_b, generate_by_miniscript_or_b
     },
     {
-        "or_c", DESCRIPTOR_KIND_MINISCRIPT_OR_C, TYPE_V, 2, verify_miniscript_or_c, generate_by_miniscript_or_c
+        "or_c", KIND_MINISCRIPT_OR_C, TYPE_V, 2, verify_miniscript_or_c, generate_by_miniscript_or_c
     },
     {
-        "or_d", DESCRIPTOR_KIND_MINISCRIPT_OR_D, TYPE_B, 2, verify_miniscript_or_d, generate_by_miniscript_or_d
+        "or_d", KIND_MINISCRIPT_OR_D, TYPE_B, 2, verify_miniscript_or_d, generate_by_miniscript_or_d
     },
     {
-        "or_i", DESCRIPTOR_KIND_MINISCRIPT_OR_I, 0, 2, verify_miniscript_or_i, generate_by_miniscript_or_i
+        "or_i", KIND_MINISCRIPT_OR_I, 0, 2, verify_miniscript_or_i, generate_by_miniscript_or_i
     },
     {
-        "thresh", DESCRIPTOR_KIND_MINISCRIPT_THRESH,
-        TYPE_B | PROP_D | PROP_U,
+        "thresh", KIND_MINISCRIPT_THRESH, TYPE_B | PROP_D | PROP_U,
         -1, verify_miniscript_thresh, generate_by_miniscript_thresh
     }
 };
@@ -2195,19 +2191,19 @@ static int generate_script_from_miniscript(
     }
 
     /* value data */
-    if (node->kind & DESCRIPTOR_KIND_RAW || node->kind == DESCRIPTOR_KIND_PUBLIC_KEY) {
+    if (node->kind & KIND_RAW || node->kind == KIND_PUBLIC_KEY) {
         ret = wally_hex_to_bytes(node->data, script, script_len, write_len);
-        if (ret == WALLY_OK && node->kind == DESCRIPTOR_KIND_PUBLIC_KEY) {
+        if (ret == WALLY_OK && node->kind == KIND_PUBLIC_KEY) {
             if (*write_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN)
                 node->is_uncompress_key = true;
             else if (*write_len == EC_PUBLIC_KEY_XONLY_LEN)
                 node->is_xonly_key = true;
         }
-    } else if (node->kind == DESCRIPTOR_KIND_NUMBER) {
+    } else if (node->kind == KIND_NUMBER) {
         ret = generate_script_from_number(node->number, parent, script, script_len, write_len);
-    } else if (node->kind == DESCRIPTOR_KIND_BASE58 || node->kind == DESCRIPTOR_KIND_BECH32) {
+    } else if (node->kind == KIND_BASE58 || node->kind == KIND_BECH32) {
         ret = analyze_miniscript_addr(node->data, NULL, NULL, NULL, script, script_len, write_len);
-    } else if (node->kind == DESCRIPTOR_KIND_PRIVATE_KEY) {
+    } else if (node->kind == KIND_PRIVATE_KEY) {
         unsigned char privkey[2 + EC_PRIVATE_KEY_LEN + BASE58_CHECKSUM_LEN];
         unsigned char pubkey[EC_PUBLIC_KEY_LEN];
         if (script_len < EC_PUBLIC_KEY_UNCOMPRESSED_LEN)
@@ -2238,7 +2234,7 @@ static int generate_script_from_miniscript(
                 }
             }
         }
-    } else if ((node->kind & DESCRIPTOR_KIND_BIP32) == DESCRIPTOR_KIND_BIP32) {
+    } else if ((node->kind & KIND_BIP32) == KIND_BIP32) {
         struct ext_key master;
 
         if ((ret = bip32_key_from_base58(node->data, &master)) != WALLY_OK)
@@ -2393,7 +2389,7 @@ static int analyze_miniscript_addr(
             return WALLY_EINVAL; /* Network not found */
 
         if (node)
-            node->kind = DESCRIPTOR_KIND_BASE58;
+            node->kind = KIND_BASE58;
 
         if (script) {
             /* Create the scriptpubkey */
@@ -2424,7 +2420,7 @@ static int analyze_miniscript_addr(
 
     if (ret == WALLY_OK) {
         if (node)
-            node->kind = DESCRIPTOR_KIND_BECH32;
+            node->kind = KIND_BECH32;
         if (script) {
             memcpy(script, buf, written);
             *write_len = written;
@@ -2453,7 +2449,7 @@ static bool analyze_pubkey_hex(const char *str, size_t str_len,
         wally_ec_public_key_verify(pubkey, written + offset) != WALLY_OK)
         return false;
 
-    node->kind = DESCRIPTOR_KIND_PUBLIC_KEY;
+    node->kind = KIND_PUBLIC_KEY;
     node->is_uncompress_key = str_len == EC_PUBLIC_KEY_UNCOMPRESSED_LEN * 2;
     node->is_xonly_key = str_len == EC_PUBLIC_KEY_XONLY_LEN * 2;
     return true;
@@ -2504,7 +2500,7 @@ static int analyze_miniscript_key(
 
         if (buf_len == EC_PRIVATE_KEY_LEN + 1 ||
             (buf_len == EC_PRIVATE_KEY_LEN + 2 && privkey[EC_PRIVATE_KEY_LEN + 1] == 0x01)) {
-            node->kind = DESCRIPTOR_KIND_PRIVATE_KEY;
+            node->kind = KIND_PRIVATE_KEY;
             if (buf_len == EC_PRIVATE_KEY_LEN + 1) {
                 node->is_uncompress_key = true;
                 if (flags & WALLY_MINISCRIPT_TAPSCRIPT)
@@ -2532,9 +2528,9 @@ static int analyze_miniscript_key(
         return ret;
 
     if (extkey.priv_key[0] == BIP32_FLAG_KEY_PRIVATE)
-        node->kind = DESCRIPTOR_KIND_BIP32_PRIVATE_KEY;
+        node->kind = KIND_BIP32_PRIVATE_KEY;
     else
-        node->kind = DESCRIPTOR_KIND_BIP32_PUBLIC_KEY;
+        node->kind = KIND_BIP32_PUBLIC_KEY;
 
     if (addr_item) {
         const bool main_key = extkey.version == BIP32_VER_MAIN_PUBLIC ||
@@ -2553,7 +2549,7 @@ static int analyze_miniscript_key(
         size_t child_path_len, wildcard_pos;
 
         ret = bip32_path_from_string(buf, child_path, sizeof(child_path),
-                                     node->kind == DESCRIPTOR_KIND_BIP32_PRIVATE_KEY,
+                                     node->kind == KIND_BIP32_PRIVATE_KEY,
                                      &child_path_len, &wildcard_pos);
         if (ret == WALLY_OK && child_path_len > DESCRIPTOR_BIP32_PATH_NUM_MAX)
             ret = WALLY_EINVAL; /* Path too long */
@@ -2590,7 +2586,7 @@ static int analyze_miniscript_value(
     if (network && !(addr_item = netaddr_from_network(*network)))
         return WALLY_EINVAL; /* Unknown network */
 
-    if (parent_node && (node_get_info(parent_node)->kind == DESCRIPTOR_KIND_DESCRIPTOR_ADDR))
+    if (parent_node && (node_get_info(parent_node)->kind == KIND_DESCRIPTOR_ADDR))
         return analyze_miniscript_addr(message, node, parent_node, addr_item, NULL, 0, NULL);
 
     message_len = strlen(message);
@@ -2619,18 +2615,16 @@ static int analyze_miniscript_value(
 
     if (parent_node) {
         int kind = node_get_info(parent_node)->kind;
-        if (kind == DESCRIPTOR_KIND_DESCRIPTOR_RAW ||
-            kind == DESCRIPTOR_KIND_MINISCRIPT_SHA256 ||
-            kind == DESCRIPTOR_KIND_MINISCRIPT_HASH256 ||
-            kind == DESCRIPTOR_KIND_MINISCRIPT_RIPEMD160 ||
-            kind == DESCRIPTOR_KIND_MINISCRIPT_HASH160) {
+        if (kind == KIND_DESCRIPTOR_RAW || kind == KIND_MINISCRIPT_SHA256 ||
+            kind == KIND_MINISCRIPT_HASH256 || kind == KIND_MINISCRIPT_RIPEMD160 ||
+            kind == KIND_MINISCRIPT_HASH160) {
             buf = wally_strdup(node->data);
             if (!buf)
                 return WALLY_ENOMEM;
 
             ret = wally_hex_to_bytes(node->data, (unsigned char *)buf, message_len, &buf_len);
             if (ret == WALLY_OK) {
-                node->kind = DESCRIPTOR_KIND_RAW;
+                node->kind = KIND_RAW;
             }
             wally_free_string(buf);
             return ret;
@@ -2639,7 +2633,7 @@ static int analyze_miniscript_value(
 
     node->number = strtoll(node->data, &err_ptr, 10);
     if (!err_ptr || !*err_ptr) {
-        node->kind = DESCRIPTOR_KIND_NUMBER;
+        node->kind = KIND_NUMBER;
         node->type_properties = TYPE_B | PROP_Z | PROP_U | PROP_M | PROP_X;
         if (node->number == 0) {
             node->type_properties |= PROP_D | PROP_E | PROP_S;
@@ -2707,7 +2701,7 @@ static int analyze_miniscript(
                     ret = WALLY_EINVAL;
                     break;
                 } else if (node->wrapper_str[0] != '\0' &&
-                           (node_get_info(node)->kind & DESCRIPTOR_KIND_MINISCRIPT) == 0) {
+                           (node_get_info(node)->kind & KIND_MINISCRIPT) == 0) {
                     ret = WALLY_EINVAL;
                     break;
                 }
@@ -2896,8 +2890,8 @@ static int parse_miniscript(
 
     ret = analyze_miniscript(miniscript, vars_in, target, network, flags,
                              NULL, NULL, &top_node, checksum_out);
-    if (ret == WALLY_OK && (target & DESCRIPTOR_KIND_DESCRIPTOR) &&
-        (!top_node->info_idx || !(node_get_info(top_node)->kind & DESCRIPTOR_KIND_DESCRIPTOR)))
+    if (ret == WALLY_OK && (target & KIND_DESCRIPTOR) &&
+        (!top_node->info_idx || !(node_get_info(top_node)->kind & KIND_DESCRIPTOR)))
         ret = WALLY_EINVAL;
     if (ret == WALLY_OK && script_item) {
         for (i = 0; i < item_len; ++i) {
@@ -2953,10 +2947,8 @@ int wally_descriptor_parse_miniscript(const char *miniscript, const struct wally
     if (!miniscript || !bytes_out || !len || !written)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(miniscript, vars_in, flags,
-                           DESCRIPTOR_KIND_MINISCRIPT,
-                           NULL, 0, 0,
-                           &script_item, 1, NULL, NULL);
+    ret = parse_miniscript(miniscript, vars_in, flags, KIND_MINISCRIPT,
+                           NULL, 0, 0, &script_item, 1, NULL, NULL);
     if (ret == WALLY_OK)
         *written = script_item.script_len;
     return ret;
@@ -2977,8 +2969,7 @@ int wally_descriptor_to_scriptpubkey(const char *descriptor, const struct wally_
     if (!descriptor || !bytes_out || !len || !written)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(descriptor, vars_in, flags,
-                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+    ret = parse_miniscript(descriptor, vars_in, flags, KIND_MINISCRIPT | KIND_DESCRIPTOR,
                            addr_item ? &network : NULL, target_depth, target_index,
                            &script_item, 1, NULL, NULL);
     if (ret == WALLY_OK)
@@ -3007,8 +2998,7 @@ int wally_descriptor_to_addresses(const char *descriptor, const struct wally_map
     for (i = 0; i < num_addresses; ++i)
         scripts[i].child_num = child_num + i;
 
-    ret = parse_miniscript(descriptor, vars_in, flags,
-                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+    ret = parse_miniscript(descriptor, vars_in, flags, KIND_MINISCRIPT | KIND_DESCRIPTOR,
                            &network, 0, 0, scripts, num_addresses, NULL, NULL);
 
     for (i = 0; i < num_addresses && ret == WALLY_OK; ++i) {
@@ -3050,8 +3040,7 @@ int wally_descriptor_create_checksum(const char *descriptor,
     if (!descriptor || !output)
         return WALLY_EINVAL;
 
-    ret = parse_miniscript(descriptor, vars_in, flags,
-                           DESCRIPTOR_KIND_MINISCRIPT | DESCRIPTOR_KIND_DESCRIPTOR,
+    ret = parse_miniscript(descriptor, vars_in, flags, KIND_MINISCRIPT | KIND_DESCRIPTOR,
                            NULL, 0, 0, NULL, 0, NULL, checksum);
 
     if (ret == WALLY_OK && !(*output = wally_strdup(checksum)))
