@@ -157,9 +157,8 @@ struct miniscript_node_t {
 };
 
 struct multisig_sort_data_t {
-    struct miniscript_node_t *node;
-    unsigned char script[EC_PUBLIC_KEY_UNCOMPRESSED_LEN];
-    uint32_t script_size;
+    size_t pubkey_len;
+    unsigned char pubkey[EC_PUBLIC_KEY_UNCOMPRESSED_LEN];
 };
 
 struct address_script_t {
@@ -495,11 +494,6 @@ static int verify_descriptor_multi(struct miniscript_node_t *node, struct minisc
 
     node->type_properties = node_get_info(node)->type_properties;
     return WALLY_OK;
-}
-
-static int verify_descriptor_sortedmulti(struct miniscript_node_t *node, struct miniscript_node_t *parent)
-{
-    return verify_descriptor_multi(node, parent);
 }
 
 static int verify_descriptor_addr(struct miniscript_node_t *node, struct miniscript_node_t *parent)
@@ -1173,42 +1167,26 @@ static int generate_by_descriptor_combo(
     return generate_by_descriptor_wpkh(node, parent, child_num, script, script_len, write_len);
 }
 
-static int compare_multisig_node(const void *source, const void *destination)
+static int compare_multisig_node(const void *lhs, const void *rhs)
 {
-    const struct multisig_sort_data_t *src = (const struct multisig_sort_data_t *)source;
-    const struct multisig_sort_data_t *dest = (const struct multisig_sort_data_t *)destination;
-    uint32_t index = 0;
-    if (src->script_size != dest->script_size) {
-        /* Head byte of compressed pubkey and uncompressed pubkey are different. */
-        return (int)src->script[0] - (int)dest->script[0];
-    }
-
-    for (; index < src->script_size; ++index) {
-        if (src->script[index] != dest->script[index]) {
-            return (int)src->script[index] - (int)dest->script[index];
-        }
-    }
-    return 0;
+    const struct multisig_sort_data_t *l = lhs;
+    /* Note: if pubkeys are different sizes, the head byte will differ and so this
+     * memcmp will not read beyond either */
+    return memcmp(l->pubkey, ((const struct multisig_sort_data_t *)rhs)->pubkey, l->pubkey_len);
 }
 
-static int generate_by_descriptor_multisig(
-    struct miniscript_node_t *node,
-    struct miniscript_node_t *parent,
-    int32_t child_num,
-    int flag,
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
+static int generate_by_descriptor_multisig(struct miniscript_node_t *node,
+                                           struct miniscript_node_t *parent,
+                                           int32_t child_num, int flag,
+                                           unsigned char *script, size_t script_len,
+                                           size_t *write_len)
 {
-    int ret;
-    size_t child_write_len = 0;
     size_t offset;
-    uint32_t count = 0;
-    uint32_t index = 0;
+    uint32_t count, i;
     struct miniscript_node_t *child = node->child;
-    struct miniscript_node_t *temp_node;
-    struct multisig_sort_data_t *sorted_node_array;
-    size_t check_len = (DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE > script_len) ? script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
+    struct multisig_sort_data_t sorted[15]; /* 15 = Max number of pubkeys for OP_CHECKMULTISIG */
+    size_t check_len = script_len <= DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE ? script_len : DESCRIPTOR_REDEEM_SCRIPT_MAX_SIZE;
+    int ret;
 
     if (!child || (parent && !parent->info_idx))
         return WALLY_EINVAL;
@@ -1217,90 +1195,68 @@ static int generate_by_descriptor_multisig(
     if (ret != WALLY_OK)
         return ret;
 
-    temp_node = child->next;
-    while (temp_node) {
-        ++count;
-        temp_node = temp_node->next;
-    }
-
-    if (!(sorted_node_array = wally_malloc(count * sizeof(*sorted_node_array))))
-        return WALLY_ENOMEM;
-
-    temp_node = child->next;
-    while (temp_node) {
-        sorted_node_array[index].node = temp_node;
-        ++index;
-        temp_node = temp_node->next;
-    }
-
-    if (ret == WALLY_OK) {
-        for (index = 0; index < count; ++index) {
-            child_write_len = 0;
-            ret = generate_script_from_miniscript(
-                sorted_node_array[index].node, node, child_num,
-                sorted_node_array[index].script,
-                sizeof(sorted_node_array[index].script),
-                &child_write_len);
-            if (ret != WALLY_OK)
-                break;
-            sorted_node_array[index].script_size = (uint32_t)child_write_len;
-        }
-    }
-    if (ret == WALLY_OK) {
-        if (flag == WALLY_SCRIPT_MULTISIG_SORTED) {
-            qsort(sorted_node_array, count, sizeof(struct multisig_sort_data_t),
-                  compare_multisig_node);
-        }
-        for (index = 0; index < count; ++index) {
-            if (offset + sorted_node_array[index].script_size + 1 > check_len) {
-                ret = WALLY_EINVAL;
-                break;
-            }
-
-            memcpy(&script[offset + 1], sorted_node_array[index].script,
-                   sorted_node_array[index].script_size);
-            script[offset] = (unsigned char) sorted_node_array[index].script_size;
-            offset += sorted_node_array[index].script_size + 1;
-        }
-    }
-
-    if (ret == WALLY_OK) {
-        ret = generate_script_from_number((int64_t)count, parent, &script[offset],
-                                          check_len - offset, &child_write_len);
-    }
-
-    if (ret == WALLY_OK) {
-        offset += child_write_len;
-        if (offset + 1 > check_len) {
+    child = child->next;
+    for (count = 0; ret == WALLY_OK && child && count < NUM_ELEMS(sorted); ++count) {
+        ret = generate_script_from_miniscript(child, node, child_num,
+                                              sorted[count].pubkey, sizeof(sorted[count].pubkey),
+                                              &sorted[count].pubkey_len);
+        if (ret == WALLY_OK && sorted[count].pubkey_len > sizeof(sorted[count].pubkey))
             ret = WALLY_EINVAL;
-        } else {
-            script[offset] = OP_CHECKMULTISIG;
-            *write_len = offset + 1;
+        child = child->next;
+    }
+
+    if (ret == WALLY_OK && (!count || child))
+        ret = WALLY_EINVAL; /* Not enough, or too may keys for multisig */
+
+    if (ret == WALLY_OK) {
+        if (flag & WALLY_SCRIPT_MULTISIG_SORTED)
+            qsort(sorted, count, sizeof(sorted[0]), compare_multisig_node);
+
+        for (i = 0; ret == WALLY_OK && i < count; ++i) {
+            const size_t pubkey_len = sorted[i].pubkey_len;
+            if (offset + pubkey_len + 1 > check_len)
+                ret = WALLY_EINVAL;
+            else {
+                script[offset] = pubkey_len;
+                memcpy(&script[offset + 1], sorted[i].pubkey, pubkey_len);
+                offset += pubkey_len + 1;
+            }
+        }
+
+        if (ret == WALLY_OK) {
+            size_t number_len = 0;
+            ret = generate_script_from_number(count, parent, &script[offset],
+                                              check_len - offset, &number_len);
+            if (ret == WALLY_OK) {
+                offset += number_len;
+                if (offset + 1 > check_len)
+                    ret = WALLY_EINVAL;
+                else {
+                    script[offset] = OP_CHECKMULTISIG;
+                    *write_len = offset + 1;
+                }
+            }
         }
     }
-    wally_free(sorted_node_array);
-    return WALLY_OK;
+    return ret;
 }
 
-static int generate_by_descriptor_multi(
-    struct miniscript_node_t *node,
-    struct miniscript_node_t *parent,
-    int32_t child_num,
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
+static int generate_by_descriptor_multi(struct miniscript_node_t *node,
+                                        struct miniscript_node_t *parent,
+                                        int32_t child_num,
+                                        unsigned char *script, size_t script_len,
+                                        size_t *write_len)
 {
-    return generate_by_descriptor_multisig(
-        node, parent, child_num, 0, script, script_len, write_len);
+    return generate_by_descriptor_multisig(node, parent, child_num,
+                                           0,
+                                           script, script_len, write_len);
 }
 
-static int generate_by_descriptor_sorted_multi(
-    struct miniscript_node_t *node,
-    struct miniscript_node_t *parent,
-    int32_t child_num,
-    unsigned char *script,
-    size_t script_len,
-    size_t *write_len)
+static int generate_by_descriptor_sorted_multi(struct miniscript_node_t *node,
+                                               struct miniscript_node_t *parent,
+                                               int32_t child_num,
+                                               unsigned char *script, size_t script_len,
+                                               size_t *write_len)
 {
     return generate_by_descriptor_multisig(node, parent, child_num,
                                            WALLY_SCRIPT_MULTISIG_SORTED,
@@ -2001,7 +1957,7 @@ static const struct miniscript_item_t miniscript_info_table[] = {
         1, verify_descriptor_multi, generate_by_descriptor_multi
     },
     {
-        "sortedmulti", KIND_DESCRIPTOR_MULTI_S, 0, -1, verify_descriptor_sortedmulti, generate_by_descriptor_sorted_multi
+        "sortedmulti", KIND_DESCRIPTOR_MULTI_S, 0, -1, verify_descriptor_multi, generate_by_descriptor_sorted_multi
     },
     {
         "addr", KIND_DESCRIPTOR_ADDR, 0, 1, verify_descriptor_addr, generate_by_descriptor_addr

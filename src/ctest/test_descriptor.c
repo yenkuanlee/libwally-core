@@ -304,11 +304,17 @@ static const struct descriptor_test {
         NULL,
         "y9zthqta"
     },{
-        "descriptor - p2sh-sortedmulti",
+        "descriptor - p2sh-sortedmulti 1",
         "sh(sortedmulti(2,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01))",
         "a914a6a8b030a38762f4c1f5cbe387b61a3c5da5cd2687",
         NULL,
         "qwx6n9lh"
+    },{
+        "descriptor - p2sh-sortedmulti 2",
+        "sh(sortedmulti(2,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe))",
+        "a914a6a8b030a38762f4c1f5cbe387b61a3c5da5cd2687",
+        NULL,
+        "fjpjdnvk" /* Note different checksum from p2sh-sortedmulti 1 */
     },{
         "descriptor - p2wsh-multi",
         "wsh(multi(2,03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7,03774ae7f858a9411e5ef4246b70c65aac5649980be5c17891bbec17895da008cb,03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a))",
