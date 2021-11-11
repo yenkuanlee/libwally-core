@@ -69,7 +69,6 @@
 #define DESCRIPTOR_MINISCRIPT_MUILTI_MAX    20
 #define DESCRIPTOR_KEY_NAME_MAX_LENGTH      16
 #define DESCRIPTOR_KEY_VALUE_MAX_LENGTH     130
-#define DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH   18
 #define DESCRIPTOR_MIN_SIZE 20
 
 #define DESCRIPTOR_CHECKSUM_LENGTH  8
@@ -958,7 +957,7 @@ static int verify_miniscript_wrappers(struct miniscript_node_t *node)
 static int generate_script_from_number(int64_t number, struct miniscript_node_t *parent,
                                        unsigned char *script, size_t script_len, size_t *written)
 {
-    if ((parent && !parent->info_idx) || script_len < DESCRIPTOR_NUMBER_BYTE_MAX_LENGTH)
+    if ((parent && !parent->info_idx) || !script_len)
         return WALLY_EINVAL;
 
     if (number == -1) {
@@ -969,7 +968,10 @@ static int generate_script_from_number(int64_t number, struct miniscript_node_t 
         *written = 1;
     } else {
         /* PUSH <number> */
-        script[0] = scriptint_to_bytes(number, script + 1);
+        script[0] = scriptint_get_length(number);
+        if (script_len < script[0] + 1)
+            return WALLY_EINVAL;
+        scriptint_to_bytes(number, script + 1);
         *written = script[0] + 1;
     }
     return WALLY_OK;

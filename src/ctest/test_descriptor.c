@@ -322,6 +322,13 @@ static const struct descriptor_test {
         NULL,
         "ks05yr6p"
     },{
+        "descriptor - p2sh multisig 15",
+        /*          1     2     3     4     5     6     7     8     9     10    11    12    13    14    15 */
+        "sh(multi(1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1))",
+        "a914276b4ebc33265436a9c9b46ca23d6781aef98fe087",
+        NULL,
+        "vtdr340n"
+    },{
         "descriptor - p2pk-xpub",
         "pk(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8)",
         "210339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2ac",
@@ -851,7 +858,12 @@ static const struct descriptor_err_test {
         "descriptor errchk - addr - unmatch network2",
         "addr(ex1qwu7hp9vckakyuw6htsy244qxtztrlyez4l7qlrpg68v6drgvj39q06fgz7)",
         WALLY_NETWORK_LIQUID_REGTEST
-    },
+    },{
+        "descriptor - multisig too many keys",
+        /*        1     2     3     4     5     6     7     8     9     10    11    12    13    14    15      16 */
+        "sh(multi(1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1,key_1))",
+        WALLY_NETWORK_LIQUID_REGTEST
+    }
 };
 
 struct descriptor_err_test g_address_err_cases[] = {
@@ -919,7 +931,7 @@ static bool check_descriptor_to_scriptpubkey(const char *function,
             wally_free_string(checksum);
             return true;
         }
-        printf("%s:  expected [%s], got [%s]\n", function, checksum, expected_checksum);
+        printf("%s:  expected [%s], got [%s]\n", function, expected_checksum, checksum);
     }
     return false;
 }
@@ -956,7 +968,7 @@ static bool check_descriptor_to_address(const char *function,
         wally_free_string(address);
         return true;
     }
-    printf("%s:  expected [%s], got [%s]\n", function, address, expected_address);
+    printf("%s:  expected [%s], got [%s]\n", function, expected_address, address);
     return false;
 }
 
